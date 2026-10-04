@@ -14,16 +14,16 @@ public class Posicion {
     
     
     public Posicion(int fila, int columna) {
-    this.fila = fila;
-    this.columna = columna;
+        this.fila = fila;
+        this.columna = columna;
     }
     
     public int getFila() {
-    return fila;
+        return fila;
     }
     
     public int getColumna() {
-    return columna;
+        return columna;
     }
     
     @Override
@@ -44,15 +44,15 @@ public class Posicion {
     
     @Override
     public int hashCode() {
-    int resultado = 17;
-    resultado = 31 * resultado + fila;
-    resultado = 31 * resultado + columna;
-    return resultado;
+        int resultado = 17;
+        resultado = 31 * resultado + fila;
+        resultado = 31 * resultado + columna;
+        return resultado;
     }
     
     @Override
     public String toString() {
-    return "(" + fila + ", " + columna + ")";
+        return "(" + fila + ", " + columna + ")";
     }
     
     

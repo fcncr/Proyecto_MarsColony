@@ -13,12 +13,10 @@ public class RegistroCombate {
     private Map<String, ResumenInteraccion> objetivosAtacados;
     private Map<String, ResumenInteraccion> atacantesRecibidos;
     
-    
     public RegistroCombate() {
         objetivosAtacados = new HashMap<>();
         atacantesRecibidos = new HashMap<>();
     }
-    
     
     public void registrarAtaqueRealizado(
         String idObjetivo,
@@ -32,5 +30,27 @@ public class RegistroCombate {
             objetivosAtacados.put(idObjetivo, resumen);
         }
         resumen.registrarGolpe(danio);
+    }
+    
+    public void registrarAtaqueRecibido(
+        String idAtacante,
+        String nombreAtacante,
+        double danio) {
+
+        ResumenInteraccion resumen = atacantesRecibidos.get(idAtacante);
+
+        if (resumen == null) {
+            resumen = new ResumenInteraccion(idAtacante,nombreAtacante);
+            atacantesRecibidos.put(idAtacante, resumen);
+        }
+        resumen.registrarGolpe(danio);
+    }
+    
+    public Map<String, ResumenInteraccion> getObjetivosAtacados() {
+        return objetivosAtacados;
+    }
+
+    public Map<String, ResumenInteraccion> getAtacantesRecibidos() {
+        return atacantesRecibidos;
     }
 }

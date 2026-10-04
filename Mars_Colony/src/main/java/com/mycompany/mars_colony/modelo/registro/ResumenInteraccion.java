@@ -39,8 +39,8 @@ public class ResumenInteraccion {
     }
     
     public void registrarGolpe(double danio) {
-    cantidadGolpes++;
-    danioTotal += danio;
+        cantidadGolpes++;
+        danioTotal += danio;
     }
 
 
