@@ -4,10 +4,9 @@
  */
 package com.mycompany.mars_colony.modelo.combate;
 
-/**
- *
- * @author fabic
- */
+import com.mycompany.mars_colony.motor.MotorBatalla;
+
 public interface Movible {
-    
+
+    boolean mover(MotorBatalla motor);
 }

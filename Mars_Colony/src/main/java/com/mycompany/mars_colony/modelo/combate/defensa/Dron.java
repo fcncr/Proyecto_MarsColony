@@ -9,10 +9,16 @@ import com.mycompany.mars_colony.modelo.combate.Movible;
 import com.mycompany.mars_colony.modelo.estado.EstadisticasCombate;
 import com.mycompany.mars_colony.modelo.estado.ImagenesEstado;
 import com.mycompany.mars_colony.modelo.mapa.Posicion;
+import com.mycompany.mars_colony.motor.MotorBatalla;
 
 public class Dron extends DefensaActiva implements Movible {
 
     public Dron(String idConfiguracion, String nombre, EstadisticasCombate estadisticas, ImagenesEstado imagenes, int misionMinima, Posicion posicion) {
         super(idConfiguracion, nombre, estadisticas, imagenes, misionMinima, posicion);
+    }
+    
+    @Override
+    public boolean mover(MotorBatalla motor) {
+        return false;
     }
 }

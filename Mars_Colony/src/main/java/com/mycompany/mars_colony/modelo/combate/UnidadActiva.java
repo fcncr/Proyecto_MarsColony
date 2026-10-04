@@ -4,10 +4,16 @@
  */
 package com.mycompany.mars_colony.modelo.combate;
 
-/**
- *
- * @author fabic
- */
+import com.mycompany.mars_colony.motor.MotorBatalla;
+import java.util.List;
+
 public interface UnidadActiva {
-    
+
+    boolean estaOperativa();
+
+    void ejecutarCiclo(MotorBatalla motor, long dtMs);
+
+    List<ComponenteCombate> seleccionarObjetivos(MotorBatalla motor);
+
+    void atacar(MotorBatalla motor, List<ComponenteCombate> objetivos);
 }

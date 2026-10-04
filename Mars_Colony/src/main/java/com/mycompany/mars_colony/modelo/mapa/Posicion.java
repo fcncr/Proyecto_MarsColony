@@ -55,6 +55,27 @@ public class Posicion {
         return "(" + fila + ", " + columna + ")";
     }
     
+    public double distanciaA(Posicion otra) {
+        if (otra == null) {
+            throw new IllegalArgumentException("La posicion no puede ser null.");
+        }
+
+        int diferenciaFila = fila - otra.fila;
+        int diferenciaColumna = columna - otra.columna;
+
+        return Math.sqrt(diferenciaFila * diferenciaFila + diferenciaColumna * diferenciaColumna);
+    }
+    
+    public boolean esAdyacente(Posicion otra) {
+        if (otra == null || equals(otra)) {
+            return false;
+        }
+
+        int diferenciaFila = Math.abs(fila - otra.fila);
+        int diferenciaColumna = Math.abs(columna - otra.columna);
+
+        return diferenciaFila <= 1 && diferenciaColumna <= 1;
+    }
     
     
 }

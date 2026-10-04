@@ -215,9 +215,7 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
             return false;
         }
 
-        int diferenciaFila = posicion.getFila() - objetivo.getPosicion().getFila();
-        int diferenciaColumna = posicion.getColumna() - objetivo.getPosicion().getColumna();
-        double distancia = Math.sqrt(diferenciaFila * diferenciaFila + diferenciaColumna * diferenciaColumna);
+        double distancia = posicion.distanciaA(objetivo.getPosicion());
 
         return distancia <= estadisticas.getAlcance();
     }
