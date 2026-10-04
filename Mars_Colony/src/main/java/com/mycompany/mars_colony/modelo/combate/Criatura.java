@@ -4,23 +4,19 @@
  */
 package com.mycompany.mars_colony.modelo.combate;
 
-/**
- *
- * @author fabic
- */
+import com.mycompany.mars_colony.modelo.estado.Bando;
+import com.mycompany.mars_colony.modelo.estado.EstadisticasCombate;
+import com.mycompany.mars_colony.modelo.estado.ImagenesEstado;
 import com.mycompany.mars_colony.modelo.mapa.Posicion;
 
 public abstract class Criatura extends ComponenteCombate implements UnidadActiva, Movible {
 
-    public Criatura(String id, String nombre, double vidaInicial, int nivel, int misionAparicion, double danio, double frecuenciaAtaque, int alcance, int radioEfecto, int costoCapacidad, Posicion posicion) {
-        super(id, nombre, vidaInicial, nivel, misionAparicion, danio, frecuenciaAtaque, alcance, radioEfecto, costoCapacidad, posicion);
+    public Criatura(String idConfiguracion, String nombre, EstadisticasCombate estadisticas, ImagenesEstado imagenes, int misionMinima, Posicion posicion) {
+        super(idConfiguracion, nombre, estadisticas, imagenes, misionMinima, posicion);
     }
 
     @Override
-    public boolean bloqueaPasoTerrestre() {
-        return false;
+    public Bando getBando() {
+        return Bando.ENEMIGO;
     }
-
-    @Override
-    public abstract boolean esAereo();
 }

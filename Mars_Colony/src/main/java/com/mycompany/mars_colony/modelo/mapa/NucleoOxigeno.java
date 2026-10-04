@@ -5,20 +5,23 @@
 package com.mycompany.mars_colony.modelo.mapa;
 
 import com.mycompany.mars_colony.modelo.combate.ComponenteCombate;
+import com.mycompany.mars_colony.modelo.estado.Bando;
+import com.mycompany.mars_colony.modelo.estado.EstadisticasCombate;
+import com.mycompany.mars_colony.modelo.estado.ImagenesEstado;
 
 public class NucleoOxigeno extends ComponenteCombate {
 
-    public NucleoOxigeno(String id, String nombre, double vidaInicial, Posicion posicion) {
-        super(id, nombre, vidaInicial, 1, 1, 0, 0, 0, 0, 0, posicion);
+    public NucleoOxigeno(String idConfiguracion, String nombre, double vidaMaxima, ImagenesEstado imagenes, Posicion posicion) {
+        super(idConfiguracion, nombre, new EstadisticasCombate(vidaMaxima, 0, 0, 0, 0, 0, false, 0, 0, 0), imagenes, 1, posicion);
+    }
+
+    @Override
+    public Bando getBando() {
+        return Bando.ALIADO;
     }
 
     @Override
     public boolean bloqueaPasoTerrestre() {
         return true;
-    }
-
-    @Override
-    public boolean esAereo() {
-        return false;
     }
 }

@@ -1,8 +1,9 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.mycompany.mars_colony.modelo.combate;
+
+import com.mycompany.mars_colony.modelo.estado.Bando;
+import com.mycompany.mars_colony.modelo.estado.EstadisticasCombate;
+import com.mycompany.mars_colony.modelo.estado.EstadoVisual;
+import com.mycompany.mars_colony.modelo.estado.ImagenesEstado;
 import com.mycompany.mars_colony.modelo.mapa.OcupanteMapa;
 import com.mycompany.mars_colony.modelo.mapa.Posicion;
 import com.mycompany.mars_colony.modelo.registro.RegistroCombate;
@@ -10,98 +11,130 @@ import com.mycompany.mars_colony.modelo.registro.RegistroCrecimiento;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-/**
- *
- * @author fabic
- */
+import java.util.UUID;
+
 public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
+
     private static final long serialVersionUID = 1L;
-    
+
     private String id;
+    private String idConfiguracion;
     private String nombre;
 
-    private double vidaInicial;
-    private double vidaMaxima;
+    private EstadisticasCombate estadisticas;
+    private ImagenesEstado imagenes;
+
     private double vidaActual;
-
     private int nivel;
-    private int misionAparicion;
-
-    private double danio;
-    private double frecuenciaAtaque;
-    private int alcance;
-    private int radioEfecto;
-    private int costoCapacidad;
+    private int misionMinima;
+    private int misionEscaladaHasta;
 
     private Posicion posicion;
+    private Posicion posicionInicial;
 
-    private RegistroCombate registroCombate;
-    private List<RegistroCrecimiento> historialCrecimiento;
-    
-    public ComponenteCombate(String id, String nombre, double vidaInicial, int nivel, int misionAparicion, double danio, double frecuenciaAtaque, int alcance, int radioEfecto, int costoCapacidad, Posicion posicion) {
-        this.id = id;
+    private EstadoVisual estadoVisual;
+
+    private long restanteAtaqueMs;
+    private long restanteMovimientoMs;
+
+    private RegistroCombate registro;
+    private List<RegistroCrecimiento> crecimientos;
+
+    public ComponenteCombate(String idConfiguracion, String nombre, EstadisticasCombate estadisticas, ImagenesEstado imagenes, int misionMinima, Posicion posicion) {
+        if (estadisticas == null) {
+            throw new IllegalArgumentException("Las estadisticas no pueden ser null.");
+        }
+
+        this.id = UUID.randomUUID().toString();
+        this.idConfiguracion = idConfiguracion;
         this.nombre = nombre;
-        this.vidaInicial = vidaInicial;
-        this.vidaMaxima = vidaInicial;
-        this.vidaActual = vidaInicial;
-        this.nivel = nivel;
-        this.misionAparicion = misionAparicion;
-        this.danio = danio;
-        this.frecuenciaAtaque = frecuenciaAtaque;
-        this.alcance = alcance;
-        this.radioEfecto = radioEfecto;
-        this.costoCapacidad = costoCapacidad;
+        this.estadisticas = estadisticas.copiar();
+        this.imagenes = imagenes;
+        this.vidaActual = this.estadisticas.getVidaMaxima();
+        this.nivel = 1;
+        this.misionMinima = misionMinima;
+        this.misionEscaladaHasta = misionMinima;
         this.posicion = posicion;
-        this.registroCombate = new RegistroCombate();
-        this.historialCrecimiento = new ArrayList<>();
+        this.posicionInicial = posicion;
+        this.estadoVisual = EstadoVisual.NORMAL;
+        this.restanteAtaqueMs = 0;
+        this.restanteMovimientoMs = 0;
+        this.registro = new RegistroCombate();
+        this.crecimientos = new ArrayList<>();
     }
+
+    public ComponenteCombate(String idConfiguracion, String nombre, double vidaInicial, int nivel, int misionAparicion, double danio, double frecuenciaAtaque, int alcance, int radioEfecto, int costoCapacidad, Posicion posicion) {
+        this(idConfiguracion, nombre, new EstadisticasCombate(vidaInicial, danio, frecuenciaAtaque, alcance, radioEfecto, costoCapacidad, false, 1, 1, 1000), new ImagenesEstado(null, null, null), misionAparicion, posicion);
+        this.nivel = nivel;
+    }
+
     @Override
     public String getId() {
         return id;
+    }
+
+    public String getIdConfiguracion() {
+        return idConfiguracion;
     }
 
     public String getNombre() {
         return nombre;
     }
 
-    public double getVidaInicial() {
-        return vidaInicial;
+    public EstadisticasCombate getEstadisticas() {
+        return estadisticas;
     }
 
-    public double getVidaMaxima() {
-        return vidaMaxima;
+    public ImagenesEstado getImagenes() {
+        return imagenes;
     }
 
     public double getVidaActual() {
         return vidaActual;
     }
 
+    public double getVidaMaxima() {
+        return estadisticas.getVidaMaxima();
+    }
+
+    public double getDanio() {
+        return estadisticas.getDanioGolpe();
+    }
+
+    public double getDanioGolpe() {
+        return estadisticas.getDanioGolpe();
+    }
+
+    public double getFrecuenciaAtaque() {
+        return estadisticas.getFrecuenciaAtaque();
+    }
+
+    public int getAlcance() {
+        return estadisticas.getAlcance();
+    }
+
+    public int getRadioEfecto() {
+        return estadisticas.getRadioEfecto();
+    }
+
+    public int getCostoCapacidad() {
+        return estadisticas.getCostoCapacidad();
+    }
+
     public int getNivel() {
         return nivel;
     }
 
+    public int getMisionMinima() {
+        return misionMinima;
+    }
+
     public int getMisionAparicion() {
-        return misionAparicion;
+        return misionMinima;
     }
 
-    public double getDanio() {
-        return danio;
-    }
-
-    public double getFrecuenciaAtaque() {
-        return frecuenciaAtaque;
-    }
-
-    public int getAlcance() {
-        return alcance;
-    }
-
-    public int getRadioEfecto() {
-        return radioEfecto;
-    }
-
-    public int getCostoCapacidad() {
-        return costoCapacidad;
+    public int getMisionEscaladaHasta() {
+        return misionEscaladaHasta;
     }
 
     @Override
@@ -109,26 +142,126 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
         return posicion;
     }
 
+    public Posicion getPosicionInicial() {
+        return posicionInicial;
+    }
+
+    public EstadoVisual getEstadoVisual() {
+        return estadoVisual;
+    }
+
+    public long getRestanteAtaqueMs() {
+        return restanteAtaqueMs;
+    }
+
+    public long getRestanteMovimientoMs() {
+        return restanteMovimientoMs;
+    }
+
     public RegistroCombate getRegistroCombate() {
-        return registroCombate;
+        return registro;
+    }
+
+    public List<RegistroCrecimiento> getCrecimientos() {
+        return crecimientos;
     }
 
     public List<RegistroCrecimiento> getHistorialCrecimiento() {
-        return historialCrecimiento;
+        return crecimientos;
     }
-    
+
+    public boolean estaOperativo() {
+        return vidaActual > 0;
+    }
+
+    public boolean estaDestruido() {
+        return !estaOperativo();
+    }
+
+    public double recibirDanio(double cantidad) {
+        if (cantidad <= 0 || estaDestruido()) {
+            return 0;
+        }
+
+        double danioEfectivo = Math.min(cantidad, vidaActual);
+        vidaActual -= danioEfectivo;
+
+        if (vidaActual <= 0) {
+            vidaActual = 0;
+            estadoVisual = EstadoVisual.DESTRUIDO;
+        }
+
+        return danioEfectivo;
+    }
+
+    public boolean puedeAtacar(ComponenteCombate objetivo) {
+        if (objetivo == null || objetivo == this) {
+            return false;
+        }
+
+        if (!estaOperativo() || !objetivo.estaOperativo()) {
+            return false;
+        }
+
+        if (getBando() == objetivo.getBando()) {
+            return false;
+        }
+
+        if (objetivo.esAereo() && !estadisticas.isAtacaAereo()) {
+            return false;
+        }
+
+        if (estadisticas.getDanioGolpe() <= 0 || posicion == null || objetivo.getPosicion() == null) {
+            return false;
+        }
+
+        int diferenciaFila = posicion.getFila() - objetivo.getPosicion().getFila();
+        int diferenciaColumna = posicion.getColumna() - objetivo.getPosicion().getColumna();
+        double distancia = Math.sqrt(diferenciaFila * diferenciaFila + diferenciaColumna * diferenciaColumna);
+
+        return distancia <= estadisticas.getAlcance();
+    }
+
+    public abstract Bando getBando();
+
+    @Override
+    public boolean esAereo() {
+        return false;
+    }
+
+    @Override
+    public boolean bloqueaPasoTerrestre() {
+        return false;
+    }
+
+    public void actualizarPosicion(Posicion posicion) {
+        this.posicion = posicion;
+    }
+
+    public void setPosicion(Posicion posicion) {
+        actualizarPosicion(posicion);
+    }
+
     public void setVidaActual(double vidaActual) {
         if (vidaActual < 0) {
             this.vidaActual = 0;
-        } else if (vidaActual > vidaMaxima) {
-            this.vidaActual = vidaMaxima;
+        } else if (vidaActual > estadisticas.getVidaMaxima()) {
+            this.vidaActual = estadisticas.getVidaMaxima();
         } else {
             this.vidaActual = vidaActual;
+        }
+
+        if (this.vidaActual == 0) {
+            estadoVisual = EstadoVisual.DESTRUIDO;
         }
     }
 
     public void setVidaMaxima(double vidaMaxima) {
-        this.vidaMaxima = vidaMaxima;
+        estadisticas.setVidaMaxima(vidaMaxima);
+
+        if (vidaActual > vidaMaxima) {
+            vidaActual = vidaMaxima;
+        }
     }
 
     public void setNivel(int nivel) {
@@ -136,20 +269,31 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
     }
 
     public void setDanio(double danio) {
-        this.danio = danio;
+        estadisticas.setDanioGolpe(danio);
     }
 
-    public void setPosicion(Posicion posicion) {
-        this.posicion = posicion;
+    public void setEstadoVisual(EstadoVisual estadoVisual) {
+        this.estadoVisual = estadoVisual;
     }
-    
-    public void agregarRegistroCrecimiento(RegistroCrecimiento registro) {
-        historialCrecimiento.add(registro);
-    }
-    
-    @Override
-    public abstract boolean bloqueaPasoTerrestre();
 
-    @Override
-    public abstract boolean esAereo();
+    public void agregarRegistroCrecimiento(RegistroCrecimiento registroCrecimiento) {
+        if (registroCrecimiento != null) {
+            crecimientos.add(registroCrecimiento);
+            misionEscaladaHasta = registroCrecimiento.getNumeroMision();
+        }
+    }
+
+    public void restablecerIntento() {
+        vidaActual = estadisticas.getVidaMaxima();
+        posicion = posicionInicial;
+        estadoVisual = EstadoVisual.NORMAL;
+        restanteAtaqueMs = 0;
+        restanteMovimientoMs = 0;
+        registro = new RegistroCombate();
+    }
+
+    protected void actualizarTiempos(long dtMs) {
+        restanteAtaqueMs = Math.max(0, restanteAtaqueMs - dtMs);
+        restanteMovimientoMs = Math.max(0, restanteMovimientoMs - dtMs);
+    }
 }

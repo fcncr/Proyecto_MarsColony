@@ -5,16 +5,13 @@
 package com.mycompany.mars_colony.modelo.combate.criatura;
 
 import com.mycompany.mars_colony.modelo.combate.Criatura;
+import com.mycompany.mars_colony.modelo.estado.EstadisticasCombate;
+import com.mycompany.mars_colony.modelo.estado.ImagenesEstado;
 import com.mycompany.mars_colony.modelo.mapa.Posicion;
 
 public class Escupidor extends Criatura {
 
-    public Escupidor(String id, String nombre, double vidaInicial, int nivel, int misionAparicion, double danio, double frecuenciaAtaque, int alcance, int radioEfecto, int costoCapacidad, Posicion posicion) {
-        super(id, nombre, vidaInicial, nivel, misionAparicion, danio, frecuenciaAtaque, alcance, radioEfecto, costoCapacidad, posicion);
-    }
-
-    @Override
-    public boolean esAereo() {
-        return false;
+    public Escupidor(String idConfiguracion, String nombre, EstadisticasCombate estadisticas, ImagenesEstado imagenes, int misionMinima, Posicion posicion) {
+        super(idConfiguracion, nombre, estadisticas, imagenes, misionMinima, posicion);
     }
 }
