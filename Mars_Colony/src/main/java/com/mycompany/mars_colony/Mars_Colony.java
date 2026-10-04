@@ -18,7 +18,7 @@ import com.mycompany.mars_colony.modelo.estado.ImagenesEstado;
 import com.mycompany.mars_colony.modelo.mapa.NucleoOxigeno;
 import com.mycompany.mars_colony.modelo.mapa.Posicion;
 
-
+import com.mycompany.mars_colony.controlador.admin.AutenticadorAdmin;
 /**
  *
  * @author fabic
@@ -26,5 +26,19 @@ import com.mycompany.mars_colony.modelo.mapa.Posicion;
 public class Mars_Colony {
 
     public static void main(String[] args) {
+        char[] claveOriginal = "marte123".toCharArray();
+        AutenticadorAdmin autenticador = new AutenticadorAdmin("admin", claveOriginal);
+
+        boolean correcta = autenticador.autenticar("admin", "marte123".toCharArray());
+        boolean claveIncorrecta = autenticador.autenticar("admin", "incorrecta".toCharArray());
+        boolean usuarioIncorrecto = autenticador.autenticar("otro", "marte123".toCharArray());
+        boolean usuarioNulo = autenticador.autenticar(null, "marte123".toCharArray());
+        boolean claveNula = autenticador.autenticar("admin", null);
+
+        System.out.println("Credenciales correctas: " + correcta);
+        System.out.println("Contraseña incorrecta rechazada: " + !claveIncorrecta);
+        System.out.println("Usuario incorrecto rechazado: " + !usuarioIncorrecto);
+        System.out.println("Usuario nulo rechazado: " + !usuarioNulo);
+        System.out.println("Contraseña nula rechazada: " + !claveNula);
     }
 }
