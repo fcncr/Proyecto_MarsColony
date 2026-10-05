@@ -290,8 +290,44 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
         registro = new RegistroCombate();
     }
 
-    protected void actualizarTiempos(long dtMs) {
-        restanteAtaqueMs = Math.max(0, restanteAtaqueMs - dtMs);
-        restanteMovimientoMs = Math.max(0, restanteMovimientoMs - dtMs);
+    public void actualizarTiempos(long dtMs) {
+        if (dtMs <= 0) {
+            return;
+        }
+
+        restanteAtaqueMs = Math.max(
+                0,
+                restanteAtaqueMs - dtMs
+        );
+
+        restanteMovimientoMs = Math.max(
+                0,
+                restanteMovimientoMs - dtMs
+        );
+    }
+    public boolean puedeEjecutarAtaque() {
+        if (!estaOperativo()) {
+            return false;
+        }
+
+        if (getDanioGolpe() <= 0) {
+            return false;
+        }
+
+        if (getFrecuenciaAtaque() <= 0) {
+            return false;
+        }
+
+        return restanteAtaqueMs <= 0;
+    }
+    
+    public void consumirAtaque() {
+        if (getFrecuenciaAtaque() <= 0) {
+            return;
+        }
+
+        double intervaloAtaqueMs = 1000.0 / getFrecuenciaAtaque();
+
+        restanteAtaqueMs = (long) Math.ceil(intervaloAtaqueMs);
     }
 }

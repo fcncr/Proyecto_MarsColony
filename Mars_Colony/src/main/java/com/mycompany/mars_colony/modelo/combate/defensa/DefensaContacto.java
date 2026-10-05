@@ -41,9 +41,13 @@ public class DefensaContacto extends DefensaActiva {
         return objetivos;
     }
 
-    @Override
+   @Override
     public void atacar(MotorBatalla motor, List<ComponenteCombate> objetivos) {
         if (motor == null || objetivos == null || objetivos.isEmpty() || !estaOperativa()) {
+            return;
+        }
+
+        if (!puedeEjecutarAtaque()) {
             return;
         }
 
@@ -53,7 +57,11 @@ public class DefensaContacto extends DefensaActiva {
                 && getPosicion() != null
                 && getPosicion().esAdyacente(objetivo.getPosicion())) {
 
-            motor.aplicarAtaque(this, objetivo);
+            double danioEfectivo = motor.aplicarAtaque(this, objetivo);
+
+            if (danioEfectivo > 0) {
+                consumirAtaque();
+            }
         }
     }
 

@@ -155,17 +155,22 @@ public class Enjambre extends Criatura {
             return;
         }
 
+        if (!puedeEjecutarAtaque()) {
+            return;
+        }
+
         int cantidadAtaques = Math.max(
                 1,
                 getEstadisticas().getCantidadAtaques()
         );
 
         int indiceObjetivo = 0;
+        boolean realizoAtaque = false;
 
         for (int ataque = 0; ataque < cantidadAtaques; ataque++) {
 
             if (!motor.estaEnEjecucion() || !estaOperativa()) {
-                return;
+                break;
             }
 
             ComponenteCombate objetivo = obtenerSiguienteObjetivoOperativo(
@@ -174,7 +179,7 @@ public class Enjambre extends Criatura {
             );
 
             if (objetivo == null) {
-                return;
+                break;
             }
 
             indiceObjetivo = objetivos.indexOf(objetivo) + 1;
@@ -192,8 +197,20 @@ public class Enjambre extends Criatura {
             );
 
             if (distancia <= getAlcance()) {
-                motor.aplicarAtaque(this, objetivo);
+
+                double danioEfectivo = motor.aplicarAtaque(
+                        this,
+                        objetivo
+                );
+
+                if (danioEfectivo > 0) {
+                    realizoAtaque = true;
+                }
             }
+        }
+
+        if (realizoAtaque) {
+            consumirAtaque();
         }
     }
 

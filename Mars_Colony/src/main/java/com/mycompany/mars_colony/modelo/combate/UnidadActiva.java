@@ -16,4 +16,6 @@ public interface UnidadActiva {
     List<ComponenteCombate> seleccionarObjetivos(MotorBatalla motor);
 
     void atacar(MotorBatalla motor, List<ComponenteCombate> objetivos);
+    
+    void actualizarTiempos(long dtMs);
 }

@@ -45,6 +45,8 @@ public class HiloUnidad implements Runnable {
             long dtMs = tiempoActual - tiempoAnterior;
             tiempoAnterior = tiempoActual;
 
+            unidad.actualizarTiempos(dtMs);
+
             unidad.ejecutarCiclo(motor, dtMs);
 
             try {

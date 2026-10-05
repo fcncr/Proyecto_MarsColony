@@ -63,17 +63,22 @@ public class DefensaMultiple extends DefensaActiva {
             return;
         }
 
+        if (!puedeEjecutarAtaque()) {
+            return;
+        }
+
         int cantidadAtaques = Math.max(
                 1,
                 getEstadisticas().getCantidadAtaques()
         );
 
         int indiceObjetivo = 0;
+        boolean realizoAtaque = false;
 
         for (int ataque = 0; ataque < cantidadAtaques; ataque++) {
 
             if (!estaOperativa()) {
-                return;
+                break;
             }
 
             ComponenteCombate objetivo = obtenerSiguienteObjetivoOperativo(
@@ -82,7 +87,7 @@ public class DefensaMultiple extends DefensaActiva {
             );
 
             if (objetivo == null) {
-                return;
+                break;
             }
 
             indiceObjetivo = objetivos.indexOf(objetivo) + 1;
@@ -100,8 +105,20 @@ public class DefensaMultiple extends DefensaActiva {
             );
 
             if (distancia <= getAlcance()) {
-                motor.aplicarAtaque(this, objetivo);
+
+                double danioEfectivo = motor.aplicarAtaque(
+                        this,
+                        objetivo
+                );
+
+                if (danioEfectivo > 0) {
+                    realizoAtaque = true;
+                }
             }
+        }
+
+        if (realizoAtaque) {
+            consumirAtaque();
         }
     }
 

@@ -126,16 +126,27 @@ public class Escupidor extends Criatura {
             return;
         }
 
+        if (!puedeEjecutarAtaque()) {
+            return;
+        }
+
         ComponenteCombate objetivo = objetivos.get(0);
 
         if (getPosicion() == null || objetivo.getPosicion() == null) {
             return;
         }
 
-        double distancia = getPosicion().distanciaA(objetivo.getPosicion());
+        double distancia = getPosicion().distanciaA(
+                objetivo.getPosicion()
+        );
 
         if (distancia <= getAlcance()) {
-            motor.aplicarAtaque(this, objetivo);
+
+            double danioEfectivo = motor.aplicarAtaque(this, objetivo);
+
+            if (danioEfectivo > 0) {
+                consumirAtaque();
+            }
         }
     }
 

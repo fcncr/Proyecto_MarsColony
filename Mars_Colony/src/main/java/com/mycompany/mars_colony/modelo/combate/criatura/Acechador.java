@@ -124,6 +124,10 @@ public class Acechador extends Criatura {
             return;
         }
 
+        if (!puedeEjecutarAtaque()) {
+            return;
+        }
+
         ComponenteCombate objetivo = objetivos.get(0);
 
         if (getPosicion() == null || objetivo.getPosicion() == null) {
@@ -131,7 +135,12 @@ public class Acechador extends Criatura {
         }
 
         if (getPosicion().esAdyacente(objetivo.getPosicion())) {
-            motor.aplicarAtaque(this, objetivo);
+
+            double danioEfectivo = motor.aplicarAtaque(this, objetivo);
+
+            if (danioEfectivo > 0) {
+                consumirAtaque();
+            }
         }
     }
 

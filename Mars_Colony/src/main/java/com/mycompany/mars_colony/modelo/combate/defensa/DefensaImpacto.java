@@ -69,17 +69,29 @@ public class DefensaImpacto extends DefensaActiva {
             return;
         }
 
+        if (!puedeEjecutarAtaque()) {
+            return;
+        }
+
         boolean detono = false;
 
         for (ComponenteCombate objetivo : objetivos) {
 
             if (objetivo != null && puedeAtacar(objetivo)) {
-                motor.aplicarAtaque(this, objetivo);
-                detono = true;
+
+                double danioEfectivo = motor.aplicarAtaque(
+                        this,
+                        objetivo
+                );
+
+                if (danioEfectivo > 0) {
+                    detono = true;
+                }
             }
         }
 
         if (detono) {
+            consumirAtaque();
             motor.destruirComponente(this);
         }
     }

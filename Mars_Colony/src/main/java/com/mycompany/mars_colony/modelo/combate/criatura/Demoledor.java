@@ -157,7 +157,12 @@ public class Demoledor extends Criatura {
             return;
         }
 
-        List<ComponenteCombate> candidatos = motor.buscarObjetivos(this);
+        if (!puedeEjecutarAtaque()) {
+            return;
+        }
+
+        List<ComponenteCombate> candidatos =
+                motor.buscarObjetivos(this);
 
         boolean exploto = false;
 
@@ -172,12 +177,20 @@ public class Demoledor extends Criatura {
             );
 
             if (distancia <= getRadioEfecto()) {
-                motor.aplicarAtaque(this, candidato);
-                exploto = true;
+
+                double danioEfectivo = motor.aplicarAtaque(
+                        this,
+                        candidato
+                );
+
+                if (danioEfectivo > 0) {
+                    exploto = true;
+                }
             }
         }
 
         if (exploto) {
+            consumirAtaque();
             motor.destruirComponente(this);
         }
     }

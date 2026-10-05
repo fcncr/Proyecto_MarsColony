@@ -46,13 +46,21 @@ public class DefensaAlcance extends DefensaActiva {
             return;
         }
 
+        if (!puedeEjecutarAtaque()) {
+            return;
+        }
+
         ComponenteCombate objetivo = objetivos.get(0);
 
         if (getPosicion() != null
                 && objetivo.getPosicion() != null
                 && getPosicion().distanciaA(objetivo.getPosicion()) <= getAlcance()) {
 
-            motor.aplicarAtaque(this, objetivo);
+            double danioEfectivo = motor.aplicarAtaque(this, objetivo);
+
+            if (danioEfectivo > 0) {
+                consumirAtaque();
+            }
         }
     }
 
