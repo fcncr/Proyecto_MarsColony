@@ -1,24 +1,171 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.mycompany.mars_colony.modelo.combate.defensa;
 
+import com.mycompany.mars_colony.motor.MotorBatalla;
+import com.mycompany.mars_colony.modelo.combate.ComponenteCombate;
 import com.mycompany.mars_colony.modelo.combate.DefensaActiva;
 import com.mycompany.mars_colony.modelo.combate.Movible;
 import com.mycompany.mars_colony.modelo.estado.EstadisticasCombate;
 import com.mycompany.mars_colony.modelo.estado.ImagenesEstado;
 import com.mycompany.mars_colony.modelo.mapa.Posicion;
-import com.mycompany.mars_colony.motor.MotorBatalla;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Dron extends DefensaActiva implements Movible {
 
     public Dron(String idConfiguracion, String nombre, EstadisticasCombate estadisticas, ImagenesEstado imagenes, int misionMinima, Posicion posicion) {
         super(idConfiguracion, nombre, estadisticas, imagenes, misionMinima, posicion);
     }
-    
+
+    @Override
+    public List<ComponenteCombate> seleccionarObjetivos(MotorBatalla motor) {
+        List<ComponenteCombate> seleccionados = new ArrayList<>();
+
+        if (motor == null || !estaOperativa() || getPosicion() == null) {
+            return seleccionados;
+        }
+
+        List<ComponenteCombate> candidatos = motor.buscarObjetivos(this);
+
+        ComponenteCombate masCercano = null;
+        double menorDistancia = Double.MAX_VALUE;
+
+        for (ComponenteCombate candidato : candidatos) {
+
+            if (candidato == null || candidato.getPosicion() == null) {
+                continue;
+            }
+
+            double distancia = getPosicion().distanciaA(candidato.getPosicion());
+
+            if (distancia < menorDistancia) {
+                menorDistancia = distancia;
+                masCercano = candidato;
+            }
+        }
+
+        if (masCercano != null) {
+            seleccionados.add(masCercano);
+        }
+
+        return seleccionados;
+    }
+
     @Override
     public boolean mover(MotorBatalla motor) {
+        if (motor == null || !estaOperativa() || getPosicion() == null) {
+            return false;
+        }
+
+        List<ComponenteCombate> objetivos = seleccionarObjetivos(motor);
+
+        if (objetivos.isEmpty()) {
+            return false;
+        }
+
+        ComponenteCombate objetivo = objetivos.get(0);
+
+        if (objetivo.getPosicion() == null) {
+            return false;
+        }
+
+        Posicion actual = getPosicion();
+        Posicion destinoObjetivo = objetivo.getPosicion();
+
+        double distancia = actual.distanciaA(destinoObjetivo);
+
+        if (distancia <= getAlcance()) {
+            return false;
+        }
+
+        int cambioFila = Integer.compare(
+                destinoObjetivo.getFila(),
+                actual.getFila()
+        );
+
+        int cambioColumna = Integer.compare(
+                destinoObjetivo.getColumna(),
+                actual.getColumna()
+        );
+
+        Posicion siguiente = new Posicion(
+                actual.getFila() + cambioFila,
+                actual.getColumna() + cambioColumna
+        );
+
+        if (motor.mover(this, siguiente)) {
+            return true;
+        }
+
+        if (cambioFila != 0) {
+
+            Posicion alternativaFila = new Posicion(
+                    actual.getFila() + cambioFila,
+                    actual.getColumna()
+            );
+
+            if (motor.mover(this, alternativaFila)) {
+                return true;
+            }
+        }
+
+        if (cambioColumna != 0) {
+
+            Posicion alternativaColumna = new Posicion(
+                    actual.getFila(),
+                    actual.getColumna() + cambioColumna
+            );
+
+            if (motor.mover(this, alternativaColumna)) {
+                return true;
+            }
+        }
+
         return false;
+    }
+
+    @Override
+    public void atacar(MotorBatalla motor, List<ComponenteCombate> objetivos) {
+        if (motor == null || objetivos == null || objetivos.isEmpty() || !estaOperativa()) {
+            return;
+        }
+
+        ComponenteCombate objetivo = objetivos.get(0);
+
+        if (getPosicion() == null || objetivo.getPosicion() == null) {
+            return;
+        }
+
+        double distancia = getPosicion().distanciaA(objetivo.getPosicion());
+
+        if (distancia <= getAlcance()) {
+            motor.aplicarAtaque(this, objetivo);
+        }
+    }
+
+    @Override
+    public void ejecutarCiclo(MotorBatalla motor, long dtMs) {
+        if (motor == null || !motor.estaEnEjecucion() || !estaOperativa()) {
+            return;
+        }
+
+        List<ComponenteCombate> objetivos = seleccionarObjetivos(motor);
+
+        if (objetivos.isEmpty()) {
+            return;
+        }
+
+        ComponenteCombate objetivo = objetivos.get(0);
+
+        if (objetivo.getPosicion() == null || getPosicion() == null) {
+            return;
+        }
+
+        double distancia = getPosicion().distanciaA(objetivo.getPosicion());
+
+        if (distancia <= getAlcance()) {
+            atacar(motor, objetivos);
+        } else {
+            mover(motor);
+        }
     }
 }
