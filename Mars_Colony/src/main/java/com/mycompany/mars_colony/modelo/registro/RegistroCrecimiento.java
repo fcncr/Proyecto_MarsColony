@@ -3,12 +3,14 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
 package com.mycompany.mars_colony.modelo.registro;
-
+import java.io.Serializable;
 /**
  *
  * @author fabic
  */
-public class RegistroCrecimiento {
+public class RegistroCrecimiento implements Serializable {
+
+    private static final long serialVersionUID = 1L;
     private int numeroMision;
     
     private double porcentajeVida;

@@ -5,8 +5,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
+import java.io.Serializable;
 
-public class Partida {
+public class Partida implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private String versionFormato;
     private String nombreComandante;

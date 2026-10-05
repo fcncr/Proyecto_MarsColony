@@ -8,11 +8,14 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.io.Serializable;
 /**
  *
  * @author fabic
  */
-public class Escuadron {
+public class Escuadron implements Serializable {
+
+    private static final long serialVersionUID = 1L;
     private int capacidadTotal = 20;
     private List<Defensa> defensas;
     private Set<String> seleccionadas;

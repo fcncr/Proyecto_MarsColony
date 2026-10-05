@@ -3,8 +3,11 @@ package com.mycompany.mars_colony.modelo.registro;
 import com.mycompany.mars_colony.modelo.mapa.Posicion;
 import java.util.HashMap;
 import java.util.Map;
+import java.io.Serializable;
 
-public class RegistroCombate {
+public class RegistroCombate implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private Map<String, ResumenInteraccion> objetivosAtacados;
     private Map<String, ResumenInteraccion> atacantesRecibidos;

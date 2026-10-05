@@ -6,8 +6,11 @@ package com.mycompany.mars_colony.modelo.mapa;
 
 import com.mycompany.mars_colony.modelo.combate.ComponenteCombate;
 import com.mycompany.mars_colony.modelo.combate.Movible;
+import java.io.Serializable;
 
-public class Tablero {
+public class Tablero implements Serializable {
+
+    private static final long serialVersionUID = 1L;
     private static final int FILAS_POR_DEFECTO = 25;
     private static final int COLUMNAS_POR_DEFECTO = 25;
 

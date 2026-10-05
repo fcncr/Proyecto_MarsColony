@@ -3,12 +3,14 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
 package com.mycompany.mars_colony.modelo.mapa;
-
+import java.io.Serializable;
 /**
  *
  * @author fabic
  */
-public class Posicion {
+public class Posicion implements Serializable {
+
+    private static final long serialVersionUID = 1L;
     private int fila;
     private int columna;
     

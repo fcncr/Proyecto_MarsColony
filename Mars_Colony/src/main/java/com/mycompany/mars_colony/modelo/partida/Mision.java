@@ -8,8 +8,11 @@ import com.mycompany.mars_colony.modelo.combate.ComponenteCombate;
 import com.mycompany.mars_colony.modelo.combate.Criatura;
 import java.util.ArrayList;
 import java.util.List;
+import java.io.Serializable;
 
-public class Mision {
+public class Mision implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private int numero;
     private EstadoMision estado;
