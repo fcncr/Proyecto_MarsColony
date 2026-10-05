@@ -81,13 +81,27 @@ public class MotorBatalla {
                 return false;
             }
 
+            if (!componente.puedeMoverseAhora()) {
+                return false;
+            }
+
             Posicion origen = componente.getPosicion();
 
             if (origen == null) {
                 return false;
             }
 
-            return partida.getTablero().mover(origen, destino);
+            boolean movio = partida.getTablero().mover(
+                    origen,
+                    destino
+            );
+
+            if (movio) {
+                componente.consumirMovimiento();
+            }
+
+            return movio;
+
         } finally {
             lock.unlock();
         }
@@ -185,7 +199,11 @@ public class MotorBatalla {
             }
 
             if (partida.getMision().todasCriaturasEliminadas()) {
-                partida.getMision().setEstado(EstadoMision.VICTORIA);
+
+                partida.getMision().setEstado(
+                        EstadoMision.VICTORIA
+                );
+                partida.getMision().cerrarRegistros();
                 enEjecucion = false;
                 condicion.signalAll();
                 return;
@@ -194,6 +212,7 @@ public class MotorBatalla {
             for (ComponenteCombate participante : partida.getMision().getParticipantes()) {
                 if (participante instanceof NucleoOxigeno && participante.estaDestruido()) {
                     partida.getMision().setEstado(EstadoMision.DERROTA);
+                    partida.getMision().cerrarRegistros();
                     enEjecucion = false;
                     condicion.signalAll();
                     return;
@@ -240,6 +259,10 @@ public class MotorBatalla {
                 return false;
             }
 
+            if (!componente.puedeMoverseAhora()) {
+                return false;
+            }
+
             if (!partida.getTablero().estaDentro(destino)) {
                 return false;
             }
@@ -262,6 +285,7 @@ public class MotorBatalla {
             );
 
             if (!colocado) {
+
                 partida.getTablero().colocar(
                         componente,
                         origen
@@ -269,6 +293,8 @@ public class MotorBatalla {
 
                 return false;
             }
+
+            componente.consumirMovimiento();
 
             return true;
 

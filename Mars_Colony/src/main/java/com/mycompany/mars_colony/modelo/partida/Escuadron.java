@@ -17,6 +17,7 @@ public class Escuadron {
     private List<Defensa> defensas;
     private Set<String> seleccionadas;
     
+    
     public Escuadron() {
         defensas = new ArrayList<>();
         seleccionadas = new HashSet<>();
@@ -61,6 +62,16 @@ public class Escuadron {
     
     public int capacidadRestante() {
         return capacidadTotal - capacidadUtilizada();
+    }
+    
+    public void aumentarCapacidad(int cantidad) {
+        if (cantidad <= 0) {
+            throw new IllegalArgumentException(
+                    "La cantidad a aumentar debe ser mayor que cero."
+            );
+        }
+
+        capacidadTotal += cantidad;
     }
     
     public boolean seleccionar(String id) {

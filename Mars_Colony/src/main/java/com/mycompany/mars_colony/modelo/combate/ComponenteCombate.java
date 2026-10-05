@@ -330,4 +330,28 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
 
         restanteAtaqueMs = (long) Math.ceil(intervaloAtaqueMs);
     }
+    
+    public boolean puedeMoverseAhora() {
+        if (!estaOperativo()) {
+            return false;
+        }
+
+        long intervalo = getEstadisticas().getIntervaloMovimientoMs();
+
+        if (intervalo <= 0) {
+            return false;
+        }
+
+        return restanteMovimientoMs <= 0;
+    }
+    
+    public void consumirMovimiento() {
+        long intervalo = getEstadisticas().getIntervaloMovimientoMs();
+
+        if (intervalo <= 0) {
+            return;
+        }
+
+        restanteMovimientoMs = intervalo;
+    }
 }

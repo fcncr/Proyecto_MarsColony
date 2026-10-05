@@ -50,7 +50,22 @@ public class Mision {
     }
 
     public void cerrarRegistros() {
-        // Los registros permanecen asociados a cada participante.
+
+        for (ComponenteCombate participante : participantes) {
+
+            if (participante == null) {
+                continue;
+            }
+
+            participante.getRegistroCombate().cerrar(
+                    participante.getVidaMaxima(),
+                    participante.getVidaActual(),
+                    participante.getDanioGolpe(),
+                    participante.getFrecuenciaAtaque(),
+                    participante.getClass().getSimpleName(),
+                    participante.getPosicion()
+            );
+        }
     }
 
     public void prepararRepeticion() {
