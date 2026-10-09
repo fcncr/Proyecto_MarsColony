@@ -7,6 +7,9 @@ package com.mycompany.mars_colony.modelo.mapa;
 import com.mycompany.mars_colony.modelo.combate.ComponenteCombate;
 import com.mycompany.mars_colony.modelo.combate.Movible;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class Tablero implements Serializable {
 
@@ -121,6 +124,22 @@ public class Tablero implements Serializable {
         casillas[destino.getFila()][destino.getColumna()].colocar(ocupante);
 
         return true;
+    }
+    
+    public List<Posicion> posicionesExteriores() {
+        List<Posicion> posiciones = new ArrayList<>();
+
+        for (int columna = 0; columna < columnas; columna++) {
+            posiciones.add(new Posicion(0, columna));
+            posiciones.add(new Posicion(filas - 1, columna));
+        }
+
+        for (int fila = 1; fila < filas - 1; fila++) {
+            posiciones.add(new Posicion(fila, 0));
+            posiciones.add(new Posicion(fila, columnas - 1));
+        }
+
+        return Collections.unmodifiableList(posiciones);
     }
     
     public int getFilas() {

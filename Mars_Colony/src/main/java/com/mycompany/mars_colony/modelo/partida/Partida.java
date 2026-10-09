@@ -1,6 +1,7 @@
 package com.mycompany.mars_colony.modelo.partida;
 
 import com.mycompany.mars_colony.modelo.mapa.Tablero;
+import com.mycompany.mars_colony.configuracion.CatalogoComponentes;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Random;
@@ -23,27 +24,36 @@ public class Partida implements Serializable {
     private Escuadron escuadron;
     private Tablero tablero;
     private Mision mision;
+    
+    private CatalogoComponentes catalogoSnapshot;
+    private boolean catalogoSnapshotInicializado;
 
     private Random azar;
+    
+    
 
-    public Partida(
-            String nombreComandante,
-            Escuadron escuadron,
-            Tablero tablero,
-            Mision mision) {
+    public Partida(String nombreComandante, Escuadron escuadron, Tablero tablero, Mision mision) {
+        this(nombreComandante, escuadron, tablero, mision, null);
+    }
 
+    public Partida(String nombreComandante, Escuadron escuadron, Tablero tablero, Mision mision, CatalogoComponentes catalogoSnapshot) {
         this.versionFormato = "1.0";
         this.nombreComandante = nombreComandante;
-
         this.misionActual = 1;
         this.totalMisiones = 10;
-
         this.misionesSuperadas = new HashSet<>();
         this.campaniaFinalizada = false;
-
         this.escuadron = escuadron;
         this.tablero = tablero;
         this.mision = mision;
+
+        if (catalogoSnapshot == null) {
+            this.catalogoSnapshot = null;
+            this.catalogoSnapshotInicializado = false;
+        } else {
+            this.catalogoSnapshot = catalogoSnapshot.copiar();
+            this.catalogoSnapshotInicializado = true;
+        }
 
         this.azar = new Random();
     }
@@ -114,7 +124,10 @@ public class Partida implements Serializable {
 
             return false;
         }
-
+        
+        if (catalogoSnapshotInicializado && catalogoSnapshot == null) {
+            return false;
+        }
         return true;
     }
 
@@ -158,6 +171,31 @@ public class Partida implements Serializable {
 
     public Random getAzar() {
         return azar;
+    }
+    
+    public boolean tieneCatalogoSnapshot() {
+        return catalogoSnapshotInicializado && catalogoSnapshot != null;
+    }
+
+    public CatalogoComponentes getCatalogoSnapshot() {
+        if (!tieneCatalogoSnapshot()) {
+            return null;
+        }
+
+        return catalogoSnapshot.copiar();
+    }
+
+    public void establecerCatalogoSnapshot(CatalogoComponentes catalogo) {
+        if (catalogo == null) {
+            throw new IllegalArgumentException("El catálogo no puede ser null.");
+        }
+
+        if (tieneCatalogoSnapshot()) {
+            throw new IllegalStateException("La partida ya tiene un catálogo snapshot.");
+        }
+
+        this.catalogoSnapshot = catalogo.copiar();
+        this.catalogoSnapshotInicializado = true;
     }
 
     public void setMisionActual(int misionActual) {

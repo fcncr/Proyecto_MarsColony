@@ -104,6 +104,21 @@ public class CatalogoComponentes implements Serializable {
 
         return -1;
     }
+    
+    public CatalogoComponentes copiar() {
+        CatalogoComponentes copia = new CatalogoComponentes();
+
+        for (ConfiguracionComponente configuracion : configuraciones) {
+            copia.crear(configuracion.copiar());
+        }
+
+        return copia;
+    }
+    
+    
+    
+    
+    
     public List<ConfiguracionComponente> listar() {
         return Collections.unmodifiableList(new ArrayList<>(configuraciones));
     }

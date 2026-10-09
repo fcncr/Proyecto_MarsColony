@@ -117,6 +117,14 @@ public class ConfiguracionComponente implements Serializable {
     public void desactivar() {
         activo = false;
     }
+    
+    public ConfiguracionComponente copiar() {
+        ConfiguracionComponente copia = new ConfiguracionComponente(id, nombre, tipo, base, imagenes, misionMinima);
+        if (!activo) {
+            copia.desactivar();
+        }
+        return copia;
+    }
 
     public String getId() {
         return id;
