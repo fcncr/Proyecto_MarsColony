@@ -3,6 +3,7 @@ package com.mycompany.mars_colony.controlador.admin;
 import com.mycompany.mars_colony.configuracion.CatalogoComponentes;
 import com.mycompany.mars_colony.configuracion.ConfiguracionComponente;
 import com.mycompany.mars_colony.persistencia.RepositorioCatalogo;
+import java.util.List;
 
 public class ControladorAdmin {
 
@@ -56,4 +57,15 @@ public class ControladorAdmin {
             throw new IllegalStateException("Debe iniciar sesión como administrador para realizar esta operación.");
         }
     }
+    
+    public ConfiguracionComponente consultar(String id) {
+        exigirSesionActiva();
+        return catalogo.consultar(id);
+    }
+    
+    public List<ConfiguracionComponente> listar() {
+        exigirSesionActiva();
+        return catalogo.listar();
+    }
+
 }

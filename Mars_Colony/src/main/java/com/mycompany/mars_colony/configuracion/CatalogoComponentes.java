@@ -104,4 +104,7 @@ public class CatalogoComponentes implements Serializable {
 
         return -1;
     }
+    public List<ConfiguracionComponente> listar() {
+        return Collections.unmodifiableList(new ArrayList<>(configuraciones));
+    }
 }

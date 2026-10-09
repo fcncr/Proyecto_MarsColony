@@ -36,20 +36,20 @@ public class RepositorioCatalogo implements Serializable {
                 Files.createDirectories(directorioPadre);
             }
 
-            try (ObjectOutputStream salida = new ObjectOutputStream(new FileOutputStream(archivo.toFile()))) {
+            try (FileOutputStream archivoSalida = new FileOutputStream(archivo.toFile()); ObjectOutputStream salida = new ObjectOutputStream(archivoSalida)) {
                 salida.writeObject(c);
             }
         } catch (IOException e) {
             throw new IllegalStateException("No se pudo guardar el catálogo en: " + archivo, e);
-        }
     }
+}
 
     public CatalogoComponentes cargar() {
         if (Files.notExists(archivo)) {
             return new CatalogoComponentes();
         }
 
-        try (ObjectInputStream entrada = new ObjectInputStream(new FileInputStream(archivo.toFile()))) {
+        try (FileInputStream archivoEntrada = new FileInputStream(archivo.toFile()); ObjectInputStream entrada = new ObjectInputStream(archivoEntrada)) {
             Object objeto = entrada.readObject();
 
             if (!(objeto instanceof CatalogoComponentes)) {
