@@ -51,6 +51,11 @@ public class ControladorAdmin {
         exigirSesionActiva();
         repo.guardar(catalogo);
     }
+    
+    public void cargar() {
+        exigirSesionActiva();
+        catalogo = repo.cargar();
+    }
 
     private void exigirSesionActiva() {
         if (!sesionActiva) {

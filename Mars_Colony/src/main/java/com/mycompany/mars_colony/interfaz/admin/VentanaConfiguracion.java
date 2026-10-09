@@ -3,6 +3,12 @@ package com.mycompany.mars_colony.interfaz.admin;
 import com.mycompany.mars_colony.configuracion.ConfiguracionComponente;
 import com.mycompany.mars_colony.configuracion.TipoComponente;
 import com.mycompany.mars_colony.controlador.admin.ControladorAdmin;
+import com.mycompany.mars_colony.modelo.estado.EstadisticasCombate;
+import com.mycompany.mars_colony.modelo.estado.ImagenesEstado;
+import com.mycompany.mars_colony.controlador.admin.AutenticadorAdmin;
+import com.mycompany.mars_colony.persistencia.RepositorioCatalogo;
+import java.nio.file.Path;
+import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
@@ -65,6 +71,7 @@ public class VentanaConfiguracion extends JFrame {
 
     private final DefaultTableModel modeloTabla;
     private final JTable tablaCatalogo;
+    private String idSeleccionado;
 
     public VentanaConfiguracion(ControladorAdmin controlador) {
         if (controlador == null) {
@@ -74,11 +81,9 @@ public class VentanaConfiguracion extends JFrame {
         this.controlador = controlador;
         this.cardLayout = new CardLayout();
         this.panelRaiz = new JPanel(cardLayout);
-
         this.campoUsuario = new JTextField(18);
         this.campoClave = new JPasswordField(18);
         this.botonIngresar = new JButton("Ingresar");
-
         this.campoId = new JTextField(15);
         this.campoNombre = new JTextField(15);
         this.comboTipo = new JComboBox<>(TipoComponente.values());
@@ -96,13 +101,13 @@ public class VentanaConfiguracion extends JFrame {
         this.campoImagenNormal = new JTextField(15);
         this.campoImagenMovimiento = new JTextField(15);
         this.campoImagenAtaque = new JTextField(15);
-
         this.botonCrear = new JButton("Crear");
         this.botonModificar = new JButton("Modificar");
         this.botonConsultar = new JButton("Consultar");
         this.botonDesactivar = new JButton("Desactivar");
         this.botonGuardar = new JButton("Guardar");
         this.botonCargar = new JButton("Cargar");
+        this.idSeleccionado = null;
 
         String[] columnas = {"ID", "Nombre", "Tipo", "Vida", "Daño", "Frecuencia", "Alcance", "Radio", "Costo", "Misión", "Activo"};
         this.modeloTabla = new DefaultTableModel(columnas, 0) {
@@ -117,7 +122,8 @@ public class VentanaConfiguracion extends JFrame {
         configurarVentana();
         construirInterfaz();
         conectarLogin();
-        configurarBotonesPendientes();
+        conectarAccionesAdministrativas();
+        habilitarBotonesAdministrativos(false);
     }
 
     private void configurarVentana() {
@@ -261,6 +267,7 @@ public class VentanaConfiguracion extends JFrame {
         try {
             if (controlador.iniciarSesion(usuario, clave)) {
                 campoClave.setText("");
+                habilitarBotonesAdministrativos(true);
                 cardLayout.show(panelRaiz, "ADMIN");
                 mostrarCatalogo();
             } else {
@@ -273,13 +280,272 @@ public class VentanaConfiguracion extends JFrame {
         }
     }
 
+    private void conectarAccionesAdministrativas() {
+        botonCrear.addActionListener(e -> crearConfiguracion());
+        botonModificar.addActionListener(e -> modificarConfiguracion());
+        botonConsultar.addActionListener(e -> consultarConfiguracion());
+        botonDesactivar.addActionListener(e -> desactivarConfiguracion());
+        botonGuardar.addActionListener(e -> guardarCatalogo());
+        botonCargar.addActionListener(e -> cargarCatalogo());
+
+        tablaCatalogo.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                cargarSeleccionTabla();
+            }
+        });
+    }
+
+    private ConfiguracionComponente leerConfiguracionFormulario() {
+        String id = campoId.getText().trim();
+        String nombre = campoNombre.getText().trim();
+        TipoComponente tipo = (TipoComponente) comboTipo.getSelectedItem();
+        double vida = leerDouble(campoVida, "Vida máxima");
+        double danio = leerDouble(campoDanio, "Daño por golpe");
+        double frecuencia = leerDouble(campoFrecuencia, "Frecuencia de ataque");
+        int alcance = leerInt(campoAlcance, "Alcance");
+        int radio = leerInt(campoRadio, "Radio de efecto");
+        int costo = leerInt(campoCosto, "Costo de capacidad");
+        int mision = leerInt(campoMisionMinima, "Misión mínima");
+        int cantidadAtaques = leerInt(campoCantidadAtaques, "Cantidad de ataques");
+        int maxObjetivos = leerInt(campoMaxObjetivos, "Máximo de objetivos");
+        long intervalo = leerLong(campoIntervaloMovimiento, "Intervalo de movimiento");
+        boolean atacaAereo = checkAtacaAereo.isSelected();
+        String imagenNormal = campoImagenNormal.getText().trim();
+        String imagenMovimiento = campoImagenMovimiento.getText().trim();
+        String imagenAtaque = campoImagenAtaque.getText().trim();
+
+        EstadisticasCombate stats = new EstadisticasCombate(vida, danio, frecuencia, alcance, radio, costo, atacaAereo, cantidadAtaques, maxObjetivos, intervalo);
+        ImagenesEstado imagenes = new ImagenesEstado(imagenNormal, imagenMovimiento, imagenAtaque);
+
+        return new ConfiguracionComponente(id, nombre, tipo, stats, imagenes, mision);
+    }
+
+    private double leerDouble(JTextField campo, String nombreCampo) {
+        try {
+            return Double.parseDouble(campo.getText().trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(nombreCampo + " debe contener un número válido.");
+        }
+    }
+
+    private int leerInt(JTextField campo, String nombreCampo) {
+        try {
+            return Integer.parseInt(campo.getText().trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(nombreCampo + " debe contener un número entero válido.");
+        }
+    }
+
+    private long leerLong(JTextField campo, String nombreCampo) {
+        try {
+            return Long.parseLong(campo.getText().trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(nombreCampo + " debe contener un número entero válido.");
+        }
+    }
+
+    private void crearConfiguracion() {
+        try {
+            ConfiguracionComponente configuracion = leerConfiguracionFormulario();
+            controlador.crear(configuracion);
+            idSeleccionado = configuracion.getId();
+            mostrarCatalogo();
+            JOptionPane.showMessageDialog(this, "Configuración creada correctamente.", "Crear", JOptionPane.INFORMATION_MESSAGE);
+        } catch (RuntimeException e) {
+            mostrarError(e.getMessage());
+        }
+    }
+
+    private void consultarConfiguracion() {
+        try {
+            String id = campoId.getText().trim();
+
+            if (id.isBlank()) {
+                throw new IllegalArgumentException("Debe indicar el ID que desea consultar.");
+            }
+
+            ConfiguracionComponente configuracion = controlador.consultar(id);
+
+            if (configuracion == null) {
+                throw new IllegalArgumentException("No existe una configuración con el ID: " + id);
+            }
+
+            idSeleccionado = configuracion.getId();
+            cargarFormulario(configuracion);
+        } catch (RuntimeException e) {
+            mostrarError(e.getMessage());
+        }
+    }
+
+    private void cargarFormulario(ConfiguracionComponente cfg) {
+        EstadisticasCombate stats = cfg.getBase();
+        ImagenesEstado imagenes = cfg.getImagenes();
+
+        campoId.setText(cfg.getId());
+        campoNombre.setText(cfg.getNombre());
+        comboTipo.setSelectedItem(cfg.getTipo());
+        campoVida.setText(String.valueOf(stats.getVidaMaxima()));
+        campoDanio.setText(String.valueOf(stats.getDanioGolpe()));
+        campoFrecuencia.setText(String.valueOf(stats.getFrecuenciaAtaque()));
+        campoAlcance.setText(String.valueOf(stats.getAlcance()));
+        campoRadio.setText(String.valueOf(stats.getRadioEfecto()));
+        campoCosto.setText(String.valueOf(stats.getCostoCapacidad()));
+        campoMisionMinima.setText(String.valueOf(cfg.getMisionMinima()));
+        checkAtacaAereo.setSelected(stats.isAtacaAereo());
+        campoCantidadAtaques.setText(String.valueOf(stats.getCantidadAtaques()));
+        campoMaxObjetivos.setText(String.valueOf(stats.getMaxObjetivos()));
+        campoIntervaloMovimiento.setText(String.valueOf(stats.getIntervaloMovimientoMs()));
+        campoImagenNormal.setText(imagenes.getNormal());
+        campoImagenMovimiento.setText(imagenes.getMovimiento());
+        campoImagenAtaque.setText(imagenes.getAtaque());
+    }
+
+    private void cargarSeleccionTabla() {
+        int filaVista = tablaCatalogo.getSelectedRow();
+
+        if (filaVista < 0) {
+            return;
+        }
+
+        try {
+            int filaModelo = tablaCatalogo.convertRowIndexToModel(filaVista);
+            String id = String.valueOf(modeloTabla.getValueAt(filaModelo, 0));
+            ConfiguracionComponente configuracion = controlador.consultar(id);
+
+            if (configuracion != null) {
+                idSeleccionado = configuracion.getId();
+                cargarFormulario(configuracion);
+            }
+        } catch (RuntimeException e) {
+            mostrarError(e.getMessage());
+        }
+    }
+
+    private void modificarConfiguracion() {
+        try {
+            String idOriginal = idSeleccionado;
+
+            if (idOriginal == null || idOriginal.isBlank()) {
+                idOriginal = campoId.getText().trim();
+            }
+
+            if (idOriginal.isBlank()) {
+                throw new IllegalArgumentException("Debe seleccionar o consultar una configuración antes de modificar.");
+            }
+
+            ConfiguracionComponente anterior = controlador.consultar(idOriginal);
+
+            if (anterior == null) {
+                throw new IllegalArgumentException("No existe la configuración que desea modificar.");
+            }
+
+            ConfiguracionComponente nueva = leerConfiguracionFormulario();
+
+            if (!anterior.isActivo()) {
+                nueva.desactivar();
+            }
+
+            controlador.modificar(idOriginal, nueva);
+            idSeleccionado = nueva.getId();
+            mostrarCatalogo();
+            JOptionPane.showMessageDialog(this, "Configuración modificada correctamente.", "Modificar", JOptionPane.INFORMATION_MESSAGE);
+        } catch (RuntimeException e) {
+            mostrarError(e.getMessage());
+        }
+    }
+
+    private void desactivarConfiguracion() {
+        try {
+            String id = idSeleccionado;
+
+            if (id == null || id.isBlank()) {
+                id = campoId.getText().trim();
+            }
+
+            if (id.isBlank()) {
+                throw new IllegalArgumentException("Debe seleccionar o indicar una configuración para desactivar.");
+            }
+
+            ConfiguracionComponente configuracion = controlador.consultar(id);
+
+            if (configuracion == null) {
+                throw new IllegalArgumentException("No existe una configuración con el ID: " + id);
+            }
+
+            if (!configuracion.isActivo()) {
+                throw new IllegalArgumentException("La configuración ya está desactivada.");
+            }
+
+            int respuesta = JOptionPane.showConfirmDialog(this, "¿Desea desactivar " + configuracion.getNombre() + "?", "Confirmar desactivación", JOptionPane.YES_NO_OPTION);
+
+            if (respuesta != JOptionPane.YES_OPTION) {
+                return;
+            }
+
+            controlador.desactivar(id);
+            mostrarCatalogo();
+
+            ConfiguracionComponente actualizada = controlador.consultar(id);
+
+            if (actualizada != null) {
+                cargarFormulario(actualizada);
+            }
+
+            JOptionPane.showMessageDialog(this, "Configuración desactivada correctamente.", "Desactivar", JOptionPane.INFORMATION_MESSAGE);
+        } catch (RuntimeException e) {
+            mostrarError(e.getMessage());
+        }
+    }
+
+    private void guardarCatalogo() {
+        try {
+            controlador.guardar();
+            JOptionPane.showMessageDialog(this, "Catálogo guardado correctamente.", "Guardar", JOptionPane.INFORMATION_MESSAGE);
+        } catch (RuntimeException e) {
+            mostrarError(e.getMessage());
+        }
+    }
+
+    private void cargarCatalogo() {
+        try {
+            controlador.cargar();
+            idSeleccionado = null;
+            limpiarFormulario();
+            mostrarCatalogo();
+            JOptionPane.showMessageDialog(this, "Catálogo cargado correctamente.", "Cargar", JOptionPane.INFORMATION_MESSAGE);
+        } catch (RuntimeException e) {
+            mostrarError(e.getMessage());
+        }
+    }
+
+    private void limpiarFormulario() {
+        campoId.setText("");
+        campoNombre.setText("");
+        comboTipo.setSelectedIndex(0);
+        campoVida.setText("");
+        campoDanio.setText("");
+        campoFrecuencia.setText("");
+        campoAlcance.setText("");
+        campoRadio.setText("");
+        campoCosto.setText("");
+        campoMisionMinima.setText("");
+        checkAtacaAereo.setSelected(false);
+        campoCantidadAtaques.setText("");
+        campoMaxObjetivos.setText("");
+        campoIntervaloMovimiento.setText("");
+        campoImagenNormal.setText("");
+        campoImagenMovimiento.setText("");
+        campoImagenAtaque.setText("");
+    }
+
     public void mostrarCatalogo() {
         try {
             List<ConfiguracionComponente> configuraciones = controlador.listar();
             modeloTabla.setRowCount(0);
 
             for (ConfiguracionComponente cfg : configuraciones) {
-                Object[] fila = {cfg.getId(), cfg.getNombre(), cfg.getTipo(), cfg.getBase().getVidaMaxima(), cfg.getBase().getDanioGolpe(), cfg.getBase().getFrecuenciaAtaque(), cfg.getBase().getAlcance(), cfg.getBase().getRadioEfecto(), cfg.getBase().getCostoCapacidad(), cfg.getMisionMinima(), cfg.isActivo()};
+                EstadisticasCombate stats = cfg.getBase();
+                Object[] fila = {cfg.getId(), cfg.getNombre(), cfg.getTipo(), stats.getVidaMaxima(), stats.getDanioGolpe(), stats.getFrecuenciaAtaque(), stats.getAlcance(), stats.getRadioEfecto(), stats.getCostoCapacidad(), cfg.getMisionMinima(), cfg.isActivo()};
                 modeloTabla.addRow(fila);
             }
         } catch (RuntimeException e) {
@@ -291,19 +557,33 @@ public class VentanaConfiguracion extends JFrame {
         JOptionPane.showMessageDialog(this, mensaje, "Error", JOptionPane.ERROR_MESSAGE);
     }
 
-    private void configurarBotonesPendientes() {
-        botonCrear.setEnabled(false);
-        botonModificar.setEnabled(false);
-        botonConsultar.setEnabled(false);
-        botonDesactivar.setEnabled(false);
-        botonGuardar.setEnabled(false);
-        botonCargar.setEnabled(false);
-
-        botonCrear.setToolTipText("Se conectará al controlador en la Tarea 10.1.");
-        botonModificar.setToolTipText("Se conectará al controlador en la Tarea 10.1.");
-        botonConsultar.setToolTipText("Se conectará al controlador en la Tarea 10.1.");
-        botonDesactivar.setToolTipText("Se conectará al controlador en la Tarea 10.1.");
-        botonGuardar.setToolTipText("Se conectará al controlador en la Tarea 10.1.");
-        botonCargar.setToolTipText("Se conectará al controlador en la Tarea 10.1.");
+    private void habilitarBotonesAdministrativos(boolean habilitados) {
+        botonCrear.setEnabled(habilitados);
+        botonModificar.setEnabled(habilitados);
+        botonConsultar.setEnabled(habilitados);
+        botonDesactivar.setEnabled(habilitados);
+        botonGuardar.setEnabled(habilitados);
+        botonCargar.setEnabled(habilitados);
     }
+    
+    
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            char[] claveAdmin = "marte123".toCharArray();
+
+            try {
+                Path archivo = Path.of("datos", "catalogo.dat");
+                RepositorioCatalogo repo = new RepositorioCatalogo(archivo);
+                AutenticadorAdmin auth = new AutenticadorAdmin("admin", claveAdmin);
+                ControladorAdmin controlador = new ControladorAdmin(repo, auth);
+                VentanaConfiguracion ventana = new VentanaConfiguracion(controlador);
+                ventana.setVisible(true);
+            } catch (RuntimeException e) {
+                JOptionPane.showMessageDialog(null, "No se pudo iniciar el administrador: " + e.getMessage(), "Error de inicio", JOptionPane.ERROR_MESSAGE);
+            } finally {
+                Arrays.fill(claveAdmin, '\0');
+            }
+        });
+    }
+       
 }
