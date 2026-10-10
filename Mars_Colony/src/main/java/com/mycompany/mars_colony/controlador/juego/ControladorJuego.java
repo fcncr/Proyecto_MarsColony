@@ -26,11 +26,17 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 public class ControladorJuego {
 
     private static final Set<TipoComponente> TIPOS_DEFENSA = EnumSet.of(TipoComponente.DEFENSA_CONTACTO, TipoComponente.DEFENSA_ALCANCE, TipoComponente.DRON, TipoComponente.DEFENSA_IMPACTO, TipoComponente.DEFENSA_MULTIPLE, TipoComponente.BARRERA);
-
+    private static final String NOMBRE_PARTIDA_TEMPORAL = "Sin partida";
+    
     private Partida partida;
     private final FabricaComponentes fabrica;
     private final RepositorioPartidas repositorioPartidas;
@@ -110,17 +116,42 @@ public class ControladorJuego {
             throw new IllegalStateException("No fue posible listar las partidas guardadas.", e);
         }
     }
+    
+    public boolean hayPartidaReal() {
+        if (partida == null) {
+            return false;
+        }
+
+        String comandante = partida.getNombreComandante();
+
+        return comandante != null
+                && !comandante.isBlank()
+                && !NOMBRE_PARTIDA_TEMPORAL.equalsIgnoreCase(comandante.trim());
+    }
 
     public void guardarPartidaActual() {
         verificarRepositorio();
 
+        if (!hayPartidaReal()) {
+            throw new IllegalStateException(
+                    "Debe crear o cargar una partida antes de guardar."
+            );
+        }
+
         try {
             repositorioPartidas.guardar(partida);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            throw e;
         } catch (Exception e) {
-            throw new IllegalStateException("No fue posible guardar la partida de " + partida.getNombreComandante() + ".", e);
+            throw new IllegalStateException(
+                    "No fue posible guardar la partida de "
+                    + partida.getNombreComandante()
+                    + ".",
+                    e
+            );
         }
     }
-
+    
     public Partida cargarPartida(String nombreComandante) {
         verificarRepositorio();
 
@@ -495,30 +526,29 @@ public class ControladorJuego {
             throw new IllegalStateException("No se configuró el generador de misiones.");
         }
 
-        Mision misionAnterior = partida.getMision();
-        Tablero tablero = partida.getTablero();
-        Escuadron escuadron = partida.getEscuadron();
+        Partida candidata = copiarPartida(partida);
+
+        Mision misionAnterior = candidata.getMision();
+        Tablero tablero = candidata.getTablero();
+        Escuadron escuadron = candidata.getEscuadron();
 
         if (misionAnterior == null || tablero == null || escuadron == null) {
-            throw new IllegalStateException("La partida no contiene los elementos necesarios para avanzar de misión.");
+            throw new IllegalStateException(
+                    "La partida no contiene los elementos necesarios para avanzar de misión."
+            );
         }
 
-        int numeroAnterior = partida.getMisionActual();
-
-        if (!servicioCampania.avanzar(partida)) {
+        if (!servicioCampania.avanzar(candidata)) {
             return false;
         }
 
-        try {
-            limpiarParticipantesNoNucleo(misionAnterior, tablero);
-            prepararDefensasParaNuevaMision(escuadron);
-            generadorMision.generar(partida);
-            return true;
-        } catch (RuntimeException e) {
-            partida.setMisionActual(numeroAnterior);
-            partida.setMision(misionAnterior);
-            throw e;
-        }
+        limpiarParticipantesNoNucleo(misionAnterior, tablero);
+        prepararDefensasParaNuevaMision(escuadron);
+        generadorMision.generar(candidata);
+
+        partida = candidata;
+
+        return true;
     }
 
     public boolean finalizarCampaniaDesdeResultado() {
@@ -787,6 +817,39 @@ public class ControladorJuego {
 
         return null;
     }
+    
+    private Partida copiarPartida(Partida original) {
+        if (original == null) {
+            throw new IllegalArgumentException("La partida original no puede ser nula.");
+        }
+
+        try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+
+            try (ObjectOutputStream salida = new ObjectOutputStream(bytes)) {
+                salida.writeObject(original);
+            }
+
+            try (ObjectInputStream entrada = new ObjectInputStream(
+                    new ByteArrayInputStream(bytes.toByteArray()))) {
+
+                Object copia = entrada.readObject();
+
+                if (!(copia instanceof Partida partidaCopiada)) {
+                    throw new IllegalStateException(
+                            "No fue posible crear una copia válida de la partida."
+                    );
+                }
+
+                return partidaCopiada;
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            throw new IllegalStateException(
+                    "No fue posible preparar el avance seguro de la misión.",
+                    e
+            );
+        }
+    }
 
     private void verificarRepositorio() {
         if (repositorioPartidas == null) {
@@ -796,13 +859,23 @@ public class ControladorJuego {
 
     private String normalizarNombre(String nombreComandante) {
         if (nombreComandante == null) {
-            throw new IllegalArgumentException("El nombre del comandante es obligatorio.");
+            throw new IllegalArgumentException(
+                    "El nombre del comandante es obligatorio."
+            );
         }
 
         String nombre = nombreComandante.trim();
 
         if (nombre.isEmpty()) {
-            throw new IllegalArgumentException("El nombre del comandante es obligatorio.");
+            throw new IllegalArgumentException(
+                    "El nombre del comandante es obligatorio."
+            );
+        }
+
+        if (NOMBRE_PARTIDA_TEMPORAL.equalsIgnoreCase(nombre)) {
+            throw new IllegalArgumentException(
+                    "El nombre 'Sin partida' está reservado por el sistema."
+            );
         }
 
         return nombre;
