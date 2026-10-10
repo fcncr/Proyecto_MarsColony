@@ -46,31 +46,18 @@ public class ServicioCampania {
     }
 
     public boolean avanzar(Partida partida) {
-
         validarPartida(partida);
 
-        if (partida.isCampaniaFinalizada()) {
+        if (!puedeAvanzar(partida)) {
             return false;
         }
 
         int actual = partida.getMisionActual();
-
-        if (!partida.fueMisionSuperada(actual)) {
-            return false;
-        }
-
         int siguiente;
 
         if (actual < partida.getTotalMisiones()) {
-
             siguiente = actual + 1;
-
         } else {
-
-            if (!partida.puedeFinalizarCampania()) {
-                return false;
-            }
-
             siguiente = generarNumeroMisionExtra(partida);
         }
 
@@ -80,26 +67,13 @@ public class ServicioCampania {
     }
 
     public boolean repetirActual(Partida partida) {
-
         validarPartida(partida);
 
-        if (partida.isCampaniaFinalizada()) {
+        if (!puedeRepetir(partida)) {
             return false;
         }
 
-        Mision mision = partida.getMision();
-
-        if (mision == null) {
-            return false;
-        }
-
-        if (mision.getNumero()
-                != partida.getMisionActual()) {
-
-            return false;
-        }
-
-        mision.prepararRepeticion();
+        partida.getMision().prepararRepeticion();
 
         return true;
     }
@@ -161,5 +135,45 @@ public class ServicioCampania {
                     "La partida no puede ser null."
             );
         }
+    }
+    
+    public boolean puedeRepetir(Partida partida) {
+        validarPartida(partida);
+
+        if (partida.isCampaniaFinalizada()) {
+            return false;
+        }
+
+        Mision mision = partida.getMision();
+
+        if (mision == null) {
+            return false;
+        }
+
+        if (mision.getNumero() != partida.getMisionActual()) {
+            return false;
+        }
+
+        return mision.getEstado() == EstadoMision.VICTORIA || mision.getEstado() == EstadoMision.DERROTA;
+    }
+
+    public boolean puedeAvanzar(Partida partida) {
+        validarPartida(partida);
+
+        if (partida.isCampaniaFinalizada()) {
+            return false;
+        }
+
+        int actual = partida.getMisionActual();
+
+        if (!partida.fueMisionSuperada(actual)) {
+            return false;
+        }
+
+        if (actual < partida.getTotalMisiones()) {
+            return true;
+        }
+
+        return partida.puedeFinalizarCampania();
     }
 }

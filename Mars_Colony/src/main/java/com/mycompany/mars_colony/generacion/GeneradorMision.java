@@ -1,42 +1,39 @@
 package com.mycompany.mars_colony.generacion;
 
 import com.mycompany.mars_colony.configuracion.CatalogoComponentes;
-import com.mycompany.mars_colony.configuracion.FabricaComponentes;
-import com.mycompany.mars_colony.modelo.mapa.Casilla;
-import com.mycompany.mars_colony.modelo.mapa.Posicion;
-import com.mycompany.mars_colony.modelo.mapa.Tablero;
-import com.mycompany.mars_colony.modelo.partida.Mision;
-import com.mycompany.mars_colony.modelo.partida.Partida;
 import com.mycompany.mars_colony.configuracion.ConfiguracionComponente;
+import com.mycompany.mars_colony.configuracion.FabricaComponentes;
 import com.mycompany.mars_colony.configuracion.TipoComponente;
 import com.mycompany.mars_colony.modelo.combate.ComponenteCombate;
 import com.mycompany.mars_colony.modelo.combate.Criatura;
-import com.mycompany.mars_colony.servicio.ServicioProgresion;
 import com.mycompany.mars_colony.modelo.combate.Defensa;
 import com.mycompany.mars_colony.modelo.mapa.NucleoOxigeno;
+import com.mycompany.mars_colony.modelo.mapa.Posicion;
+import com.mycompany.mars_colony.modelo.mapa.Tablero;
+import com.mycompany.mars_colony.modelo.partida.Escuadron;
+import com.mycompany.mars_colony.modelo.partida.Mision;
+import com.mycompany.mars_colony.modelo.partida.Partida;
+import com.mycompany.mars_colony.servicio.ServicioProgresion;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
-import java.util.Collections;
 
 public class GeneradorMision {
+
     private static final Set<TipoComponente> TIPOS_CRIATURA = EnumSet.of(TipoComponente.ACECHADOR, TipoComponente.ESCUPIDOR, TipoComponente.DEMOLEDOR, TipoComponente.VOLADOR, TipoComponente.ENJAMBRE);
+
     private final FabricaComponentes fabrica;
-    private final CatalogoComponentes catalogo;
     private final ServicioProgresion progresion;
 
-    public GeneradorMision(FabricaComponentes fabrica, CatalogoComponentes catalogo) {
-        this(fabrica, catalogo, new ServicioProgresion());
+    public GeneradorMision() {
+        this(new FabricaComponentes(), new ServicioProgresion());
     }
 
-    public GeneradorMision(FabricaComponentes fabrica, CatalogoComponentes catalogo, ServicioProgresion progresion) {
+    public GeneradorMision(FabricaComponentes fabrica, ServicioProgresion progresion) {
         if (fabrica == null) {
             throw new IllegalArgumentException("La fábrica de componentes no puede ser nula.");
-        }
-
-        if (catalogo == null) {
-            throw new IllegalArgumentException("El catálogo de componentes no puede ser nulo.");
         }
 
         if (progresion == null) {
@@ -44,249 +41,251 @@ public class GeneradorMision {
         }
 
         this.fabrica = fabrica;
-        this.catalogo = catalogo;
         this.progresion = progresion;
     }
-    
-    public List<ConfiguracionComponente> obtenerCriaturasDisponibles(Partida partida, int numeroMision) {
-        validarContexto(partida, numeroMision);
-        CatalogoComponentes snapshot = obtenerCatalogoSnapshot(partida);
-        return filtrarCriaturas(snapshot, numeroMision);
+
+    public Mision generar(Partida partida) {
+        validarPartida(partida);
+
+        int numeroMision = partida.getMisionActual();
+        Escuadron escuadron = partida.getEscuadron();
+        Tablero tablero = partida.getTablero();
+        CatalogoComponentes catalogo = partida.getCatalogoSnapshot();
+
+        if (catalogo == null) {
+            throw new IllegalStateException("La partida no contiene un catálogo de componentes.");
+        }
+
+        NucleoOxigeno nucleo = buscarNucleo(tablero);
+
+        if (nucleo == null) {
+            throw new IllegalStateException("No se encontró el núcleo de oxígeno en el tablero.");
+        }
+
+        List<ConfiguracionComponente> disponibles = catalogo.disponibles(numeroMision);
+        CatalogoComponentes catalogoCriaturas = crearCatalogoCriaturas(disponibles);
+
+        List<Posicion> exterioresLibres = obtenerPosicionesExterioresLibres(tablero);
+
+        if (exterioresLibres.isEmpty()) {
+            throw new IllegalStateException("No existen casillas exteriores libres para generar criaturas.");
+        }
+
+        int capacidadEnemiga = escuadron.getCapacidadTotal();
+
+        List<Criatura> criaturas = completarPresupuesto(capacidadEnemiga, exterioresLibres.size(), catalogoCriaturas);
+
+        if (criaturas.isEmpty()) {
+            throw new IllegalStateException("No fue posible generar el ejército enemigo.");
+        }
+
+        List<ComponenteCombate> participantes = crearParticipantes(nucleo, escuadron, criaturas);
+
+        progresion.aplicarCrecimiento(participantes, numeroMision, partida.getAzar());
+
+        colocarCriaturas(partida, tablero, criaturas, exterioresLibres);
+
+        Mision mision = new Mision(numeroMision, capacidadEnemiga, criaturas, participantes, true);
+
+        partida.setMision(mision);
+
+        return mision;
     }
 
-    private List<ConfiguracionComponente> filtrarCriaturas(CatalogoComponentes fuente, int numeroMision) {
-        List<ConfiguracionComponente> disponibles = fuente.disponibles(numeroMision);
-        List<ConfiguracionComponente> criaturas = new ArrayList<>();
+    public List<Criatura> completarPresupuesto(int capacidad, int maxCasillas, CatalogoComponentes catalogo) {
+        if (capacidad <= 0) {
+            throw new IllegalArgumentException("La capacidad enemiga debe ser mayor que cero.");
+        }
 
-        for (ConfiguracionComponente configuracion : disponibles) {
-            if (TIPOS_CRIATURA.contains(configuracion.getTipo())) {
-                criaturas.add(configuracion);
+        if (maxCasillas <= 0) {
+            throw new IllegalArgumentException("La cantidad máxima de casillas debe ser mayor que cero.");
+        }
+
+        if (catalogo == null) {
+            throw new IllegalArgumentException("El catálogo no puede ser nulo.");
+        }
+
+        List<ConfiguracionComponente> candidatas = new ArrayList<>();
+
+        for (ConfiguracionComponente configuracion : catalogo.listar()) {
+            if (configuracion != null && configuracion.isActivo() && esTipoCriatura(configuracion.getTipo())) {
+                candidatas.add(configuracion);
             }
         }
 
-        return Collections.unmodifiableList(criaturas);
-    }
-    
-    private CatalogoComponentes obtenerCatalogoSnapshot(Partida partida) {
-        if (!partida.tieneCatalogoSnapshot()) {
-            partida.establecerCatalogoSnapshot(catalogo);
+        if (candidatas.isEmpty()) {
+            throw new IllegalStateException("No existen configuraciones de criaturas disponibles.");
         }
 
-        CatalogoComponentes snapshot = partida.getCatalogoSnapshot();
+        boolean[][] alcanzable = new boolean[maxCasillas + 1][capacidad + 1];
+        int[][] presupuestoAnterior = new int[maxCasillas + 1][capacidad + 1];
+        ConfiguracionComponente[][] configuracionUsada = new ConfiguracionComponente[maxCasillas + 1][capacidad + 1];
 
-        if (snapshot == null) {
-            throw new IllegalStateException("No se pudo obtener el catálogo snapshot de la partida.");
+        alcanzable[0][0] = true;
+
+        for (int cantidad = 0; cantidad < maxCasillas; cantidad++) {
+            for (int presupuesto = 0; presupuesto <= capacidad; presupuesto++) {
+                if (!alcanzable[cantidad][presupuesto]) {
+                    continue;
+                }
+
+                for (ConfiguracionComponente configuracion : candidatas) {
+                    int costo = configuracion.getBase().getCostoCapacidad();
+                    int nuevoPresupuesto = presupuesto + costo;
+
+                    if (costo <= 0 || nuevoPresupuesto > capacidad) {
+                        continue;
+                    }
+
+                    if (!alcanzable[cantidad + 1][nuevoPresupuesto]) {
+                        alcanzable[cantidad + 1][nuevoPresupuesto] = true;
+                        presupuestoAnterior[cantidad + 1][nuevoPresupuesto] = presupuesto;
+                        configuracionUsada[cantidad + 1][nuevoPresupuesto] = configuracion;
+                    }
+                }
+            }
         }
 
-        return snapshot;
-    }
-    
-    public List<ConfiguracionComponente> seleccionarConfiguracionesEnemigas(Partida partida, int numeroMision) {
-        validarContexto(partida, numeroMision);
+        int cantidadElegida = -1;
 
-        int presupuesto = partida.getEscuadron().getCapacidadTotal();
-        List<ConfiguracionComponente> candidatas = obtenerCriaturasDisponibles(partida, numeroMision);
-        List<ConfiguracionComponente> combinacion = buscarCombinacionExacta(candidatas, presupuesto);
-
-        if (combinacion == null) {
-            throw new IllegalStateException("No existe una combinación de criaturas que complete exactamente la capacidad enemiga de " + presupuesto + ".");
+        for (int cantidad = 1; cantidad <= maxCasillas; cantidad++) {
+            if (alcanzable[cantidad][capacidad]) {
+                cantidadElegida = cantidad;
+                break;
+            }
         }
 
-        return Collections.unmodifiableList(combinacion);
-    }
-    
-    public List<Criatura> instanciarCriaturasEnemigas(Partida partida, int numeroMision) {
-        List<ConfiguracionComponente> seleccion = seleccionarConfiguracionesEnemigas(partida, numeroMision);
+        if (cantidadElegida < 0) {
+            throw new IllegalStateException("No existe una combinación exacta de criaturas para la capacidad enemiga " + capacidad + ".");
+        }
+
+        List<ConfiguracionComponente> seleccionadas = reconstruirConfiguraciones(cantidadElegida, capacidad, presupuestoAnterior, configuracionUsada);
         List<Criatura> criaturas = new ArrayList<>();
 
-        for (ConfiguracionComponente configuracion : seleccion) {
+        for (ConfiguracionComponente configuracion : seleccionadas) {
             ComponenteCombate componente = fabrica.crear(configuracion);
 
             if (!(componente instanceof Criatura criatura)) {
-                throw new IllegalStateException("La configuración " + configuracion.getId() + " no produjo una criatura.");
+                throw new IllegalStateException("La configuración " + configuracion.getId() + " no creó una criatura.");
             }
 
             criaturas.add(criatura);
         }
-        
-        progresion.aplicarCrecimiento(partida.getEscuadron().getDefensas(), numeroMision, partida.getAzar());
-        progresion.aplicarCrecimiento(criaturas, numeroMision, partida.getAzar());
-        return Collections.unmodifiableList(criaturas);
-    }
-    
-    public List<Criatura> distribuirCriaturasEnPosicionesValidas(Partida partida, int numeroMision) {
-        validarContexto(partida, numeroMision);
 
-        if (partida.getAzar() == null) {
-            throw new IllegalStateException("La partida no tiene un generador aleatorio disponible.");
-        }
-
-        List<Criatura> criaturas = instanciarCriaturasEnemigas(partida, numeroMision);
-        Tablero tablero = partida.getTablero();
-        List<Posicion> posiciones = obtenerEntradasExterioresLibres(tablero);
-
-        if (posiciones.size() < criaturas.size()) {
-            throw new IllegalStateException("No hay suficientes posiciones exteriores libres para colocar todas las criaturas.");
-        }
-
-        Collections.shuffle(posiciones, partida.getAzar());
-
-        List<Criatura> colocadas = new ArrayList<>();
-
-        for (int indice = 0; indice < criaturas.size(); indice++) {
-            Criatura criatura = criaturas.get(indice);
-            Posicion posicion = posiciones.get(indice);
-
-            if (!tablero.colocar(criatura, posicion)) {
-                revertirColocaciones(tablero, colocadas);
-                throw new IllegalStateException("No se pudo colocar una criatura en la posición exterior " + posicion + ".");
-            }
-
-            colocadas.add(criatura);
-        }
-
-        return Collections.unmodifiableList(colocadas);
-    }
-    
-    private List<Posicion> obtenerEntradasExterioresLibres(Tablero tablero) {
-        List<Posicion> libres = new ArrayList<>();
-
-        for (Posicion posicion : tablero.posicionesExteriores()) {
-            Casilla casilla = tablero.getCasilla(posicion);
-
-            if (casilla != null && casilla.estaLibre()) {
-                libres.add(posicion);
-            }
-        }
-
-        return libres;
-    }
-    
-    private void revertirColocaciones(Tablero tablero, List<Criatura> colocadas) {
-        for (Criatura criatura : colocadas) {
-            Posicion posicion = criatura.getPosicion();
-
-            if (posicion != null && tablero.obtener(posicion) == criatura) {
-                tablero.retirar(posicion);
-            }
-
-            criatura.setPosicion(null);
-        }
+        return criaturas;
     }
 
-    private List<ConfiguracionComponente> buscarCombinacionExacta(List<ConfiguracionComponente> candidatas, int presupuesto) {
-        boolean[] alcanzable = new boolean[presupuesto + 1];
-        ConfiguracionComponente[] usada = new ConfiguracionComponente[presupuesto + 1];
-        int[] anterior = new int[presupuesto + 1];
+    public void reajustarEjercito(Partida partida) {
+        validarPartida(partida);
 
-        alcanzable[0] = true;
+        Mision mision = partida.getMision();
 
-        for (int acumulado = 0; acumulado <= presupuesto; acumulado++) {
-            if (!alcanzable[acumulado]) {
-                continue;
-            }
+        if (mision == null) {
+            throw new IllegalStateException("La partida no tiene una misión que reajustar.");
+        }
 
-            for (ConfiguracionComponente candidata : candidatas) {
-                int costo = candidata.getBase().getCostoCapacidad();
+        progresion.aplicarCrecimiento(mision.getParticipantes(), partida.getMisionActual(), partida.getAzar());
+    }
 
-                if (costo <= 0) {
-                    throw new IllegalStateException("Una criatura disponible tiene un costo de capacidad inválido.");
-                }
+    private CatalogoComponentes crearCatalogoCriaturas(List<ConfiguracionComponente> configuraciones) {
+        CatalogoComponentes resultado = new CatalogoComponentes();
 
-                int siguiente = acumulado + costo;
-
-                if (siguiente <= presupuesto && !alcanzable[siguiente]) {
-                    alcanzable[siguiente] = true;
-                    usada[siguiente] = candidata;
-                    anterior[siguiente] = acumulado;
-                }
+        for (ConfiguracionComponente configuracion : configuraciones) {
+            if (configuracion != null && configuracion.isActivo() && esTipoCriatura(configuracion.getTipo())) {
+                resultado.crear(configuracion.copiar());
             }
         }
 
-        if (!alcanzable[presupuesto]) {
-            return null;
+        if (resultado.listar().isEmpty()) {
+            throw new IllegalStateException("No existen criaturas disponibles para la misión actual.");
         }
 
+        return resultado;
+    }
+
+    private boolean esTipoCriatura(TipoComponente tipo) {
+        return tipo != null && TIPOS_CRIATURA.contains(tipo);
+    }
+
+    private List<ConfiguracionComponente> reconstruirConfiguraciones(int cantidad, int capacidad, int[][] presupuestoAnterior, ConfiguracionComponente[][] configuracionUsada) {
         List<ConfiguracionComponente> resultado = new ArrayList<>();
-        int actual = presupuesto;
 
-        while (actual > 0) {
-            ConfiguracionComponente configuracion = usada[actual];
+        int cantidadActual = cantidad;
+        int presupuestoActual = capacidad;
+
+        while (cantidadActual > 0) {
+            ConfiguracionComponente configuracion = configuracionUsada[cantidadActual][presupuestoActual];
 
             if (configuracion == null) {
-                throw new IllegalStateException("No se pudo reconstruir la combinación de criaturas.");
+                throw new IllegalStateException("No fue posible reconstruir el ejército enemigo.");
             }
 
             resultado.add(configuracion);
-            actual = anterior[actual];
+
+            presupuestoActual = presupuestoAnterior[cantidadActual][presupuestoActual];
+            cantidadActual--;
         }
 
         Collections.reverse(resultado);
+
         return resultado;
     }
-    
-    private void validarContexto(Partida partida, int numeroMision) {
-        if (partida == null) {
-            throw new IllegalArgumentException("La partida no puede ser nula.");
+
+    private List<Posicion> obtenerPosicionesExterioresLibres(Tablero tablero) {
+        List<Posicion> resultado = new ArrayList<>();
+
+        for (Posicion posicion : tablero.posicionesExteriores()) {
+            if (tablero.estaLibre(posicion)) {
+                resultado.add(posicion);
+            }
         }
 
-        if (numeroMision < 1) {
-            throw new IllegalArgumentException("El número de misión debe ser mayor o igual a 1.");
-        }
-
-        if (numeroMision != partida.getMisionActual()) {
-            throw new IllegalArgumentException("El número indicado debe coincidir con la misión actual de la partida.");
-        }
-
-        if (partida.getEscuadron() == null) {
-            throw new IllegalStateException("La partida no tiene un escuadrón disponible.");
-        }
-
-        if (partida.getTablero() == null) {
-            throw new IllegalStateException("La partida no tiene un tablero disponible.");
-        }
-        if (partida.getAzar() == null) {
-            throw new IllegalStateException("La partida no tiene un generador aleatorio disponible.");
-        }
+        return resultado;
     }
 
-    public Mision generar(Partida partida, int numeroMision) {
-        validarContexto(partida, numeroMision);
+    private void colocarCriaturas(Partida partida, Tablero tablero, List<Criatura> criaturas, List<Posicion> posicionesDisponibles) {
+        List<Posicion> posiciones = new ArrayList<>(posicionesDisponibles);
+        List<Posicion> colocadas = new ArrayList<>();
 
-        List<Criatura> criaturas = distribuirCriaturasEnPosicionesValidas(partida, numeroMision);
+        Collections.shuffle(posiciones, partida.getAzar());
+
+        if (criaturas.size() > posiciones.size()) {
+            throw new IllegalStateException("No existen suficientes casillas exteriores libres para colocar todas las criaturas.");
+        }
 
         try {
-            int capacidadEnemiga = partida.getEscuadron().getCapacidadTotal();
-            List<ComponenteCombate> participantes = construirParticipantes(partida, criaturas);
-            Mision misionPreparada = new Mision(numeroMision, capacidadEnemiga, criaturas, participantes, true);
+            for (int i = 0; i < criaturas.size(); i++) {
+                Criatura criatura = criaturas.get(i);
+                Posicion posicion = posiciones.get(i);
 
-            partida.setMision(misionPreparada);
+                if (!tablero.colocar(criatura, posicion)) {
+                    throw new IllegalStateException("No fue posible colocar la criatura " + criatura.getNombre() + " en " + posicion + ".");
+                }
 
-            return misionPreparada;
+                colocadas.add(posicion);
+            }
         } catch (RuntimeException e) {
-            revertirColocaciones(partida.getTablero(), criaturas);
+            for (Posicion posicion : colocadas) {
+                tablero.retirar(posicion);
+            }
+
+            for (Criatura criatura : criaturas) {
+                criatura.setPosicion(null);
+            }
+
             throw e;
         }
     }
-    
-    private NucleoOxigeno obtenerNucleo(Tablero tablero) {
-        Posicion centro = new Posicion(tablero.getFilas() / 2, tablero.getColumnas() / 2);
 
-        if (!(tablero.obtener(centro) instanceof NucleoOxigeno nucleo)) {
-            throw new IllegalStateException("El tablero no contiene el núcleo de oxígeno en su posición central.");
-        }
-
-        return nucleo;
-    }
-    
-    private List<ComponenteCombate> construirParticipantes(Partida partida, List<Criatura> criaturas) {
+    private List<ComponenteCombate> crearParticipantes(NucleoOxigeno nucleo, Escuadron escuadron, List<Criatura> criaturas) {
         List<ComponenteCombate> participantes = new ArrayList<>();
 
-        NucleoOxigeno nucleo = obtenerNucleo(partida.getTablero());
         participantes.add(nucleo);
 
-        for (Defensa defensa : partida.getEscuadron().getDefensas()) {
-            if (defensa != null && partida.getEscuadron().getSeleccionadas().contains(defensa.getId())) {
+        Set<String> seleccionadas = escuadron.getSeleccionadas();
+
+        for (Defensa defensa : escuadron.getDefensas()) {
+            if (defensa != null && seleccionadas.contains(defensa.getId())) {
                 participantes.add(defensa);
             }
         }
@@ -294,5 +293,45 @@ public class GeneradorMision {
         participantes.addAll(criaturas);
 
         return participantes;
+    }
+
+    private NucleoOxigeno buscarNucleo(Tablero tablero) {
+        for (int fila = 0; fila < tablero.getFilas(); fila++) {
+            for (int columna = 0; columna < tablero.getColumnas(); columna++) {
+                Posicion posicion = new Posicion(fila, columna);
+
+                if (tablero.obtener(posicion) instanceof NucleoOxigeno nucleo) {
+                    return nucleo;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private void validarPartida(Partida partida) {
+        if (partida == null) {
+            throw new IllegalArgumentException("La partida no puede ser nula.");
+        }
+
+        if (partida.getEscuadron() == null) {
+            throw new IllegalStateException("La partida no tiene un escuadrón.");
+        }
+
+        if (partida.getTablero() == null) {
+            throw new IllegalStateException("La partida no tiene un tablero.");
+        }
+
+        if (!partida.tieneCatalogoSnapshot()) {
+            throw new IllegalStateException("La partida no contiene un catálogo snapshot.");
+        }
+
+        if (partida.getMisionActual() < 1) {
+            throw new IllegalStateException("El número de misión no es válido.");
+        }
+
+        if (partida.getAzar() == null) {
+            throw new IllegalStateException("La partida no contiene un generador aleatorio.");
+        }
     }
 }
