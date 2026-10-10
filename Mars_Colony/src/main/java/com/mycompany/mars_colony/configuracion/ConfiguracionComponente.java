@@ -225,6 +225,10 @@ public class ConfiguracionComponente implements Serializable {
         activo = false;
     }
 
+    public void activar() {
+        activo = true;
+    }
+
     public ConfiguracionComponente copiar() {
         ConfiguracionComponente copia = new ConfiguracionComponente(id, nombre, tipo, base, imagenes, misionMinima);
 

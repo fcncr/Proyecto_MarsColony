@@ -22,7 +22,7 @@ public final class MarsColonyAdmin {
     }
 
     private static void iniciarAdministrador() {
-        char[] claveAdmin = "marte123".toCharArray();
+        char[] claveAdmin = "admin".toCharArray();
 
         try {
             Path archivoCatalogo = RutasAplicacion.resolver("datos/catalogo.dat");

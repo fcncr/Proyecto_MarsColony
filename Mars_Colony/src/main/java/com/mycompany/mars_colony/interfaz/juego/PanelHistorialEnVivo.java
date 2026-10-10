@@ -88,11 +88,23 @@ public class PanelHistorialEnVivo extends PanelPantallaJuego {
         mapa.setAccionCasilla(this::seleccionarCasilla);
 
         JScrollPane scrollMapa = new JScrollPane(mapa);
+        PanelControlesZoomMapa controlesZoom = new PanelControlesZoomMapa(mapa);
         scrollMapa.setBorder(null);
         scrollMapa.getViewport().setBackground(TemaMars.FONDO_PROFUNDO);
 
-        zonaMapa.add(resumen, BorderLayout.NORTH);
-        zonaMapa.add(scrollMapa, BorderLayout.CENTER);
+        JPanel cabeceraMapa = new JPanel(
+                new BorderLayout(0, 6)
+        );
+
+        cabeceraMapa.setOpaque(false);
+
+        cabeceraMapa.add(resumen,BorderLayout.CENTER);
+
+        cabeceraMapa.add(controlesZoom,BorderLayout.SOUTH);
+
+        zonaMapa.add(cabeceraMapa,BorderLayout.NORTH);
+
+        zonaMapa.add(scrollMapa,BorderLayout.CENTER);
 
         PanelMars detalle = new PanelMars();
         detalle.setPreferredSize(new Dimension(520, 100));

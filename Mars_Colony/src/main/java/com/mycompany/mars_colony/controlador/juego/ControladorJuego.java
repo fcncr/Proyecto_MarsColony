@@ -138,6 +138,14 @@ public class ControladorJuego {
             );
         }
 
+        if (estaBatallaEnCurso()) {
+            throw new IllegalStateException(
+                    "No se puede guardar mientras una batalla está en curso."
+            );
+        }
+
+        registrarVictoriaPendienteAntesDeGuardar();
+
         try {
             repositorioPartidas.guardar(partida);
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -150,6 +158,22 @@ public class ControladorJuego {
                     e
             );
         }
+    }
+    
+    private void registrarVictoriaPendienteAntesDeGuardar() {
+        if (partida == null
+                || partida.getMision() == null) {
+            return;
+        }
+
+        if (partida.getMision().getEstado()
+                != EstadoMision.VICTORIA) {
+            return;
+        }
+
+        servicioCampania.registrarVictoria(
+                partida
+        );
     }
     
     public Partida cargarPartida(String nombreComandante) {

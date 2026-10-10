@@ -137,6 +137,25 @@ public class PanelPreparacion extends PanelPantallaJuego {
 
         scrollMapa.getVerticalScrollBar().setUnitIncrement(20);
         scrollMapa.getHorizontalScrollBar().setUnitIncrement(20);
+        
+        PanelControlesZoomMapa controlesZoom =
+        new PanelControlesZoomMapa(mapa);
+
+        JPanel zonaMapa = new JPanel(
+                new BorderLayout(0, 6)
+        );
+
+        zonaMapa.setOpaque(false);
+
+        zonaMapa.add(
+                controlesZoom,
+                BorderLayout.NORTH
+        );
+
+        zonaMapa.add(
+                scrollMapa,
+                BorderLayout.CENTER
+        );
 
         PanelMars inspector = new PanelMars();
 
@@ -280,19 +299,91 @@ public class PanelPreparacion extends PanelPantallaJuego {
                 e -> retirarSeleccionada()
         );
 
-        JPanel accionesInspector = new JPanel(
-                new GridLayout(1, 3, 8, 0)
-        );
+        JPanel accionesInspector = new JPanel();
 
         accionesInspector.setOpaque(false);
 
-        accionesInspector.setMaximumSize(
-                new Dimension(Integer.MAX_VALUE, 48)
+        accionesInspector.setLayout(
+                new BoxLayout(
+                        accionesInspector,
+                        BoxLayout.Y_AXIS
+                )
         );
 
-        accionesInspector.add(botonFicha);
-        accionesInspector.add(botonMover);
-        accionesInspector.add(botonRetirar);
+        accionesInspector.setMaximumSize(
+                new Dimension(
+                        Integer.MAX_VALUE,
+                        106
+                )
+        );
+
+        botonFicha.setText("Ficha");
+
+        botonFicha.setPreferredSize(
+                new Dimension(
+                        280,
+                        48
+                )
+        );
+
+        botonFicha.setMinimumSize(
+                new Dimension(
+                        200,
+                        48
+                )
+        );
+
+        botonFicha.setMaximumSize(
+                new Dimension(
+                        Integer.MAX_VALUE,
+                        48
+                )
+        );
+
+        botonFicha.setAlignmentX(
+                CENTER_ALIGNMENT
+        );
+
+        JPanel filaAcciones = new JPanel(
+                new GridLayout(
+                        1,
+                        2,
+                        10,
+                        0
+                )
+        );
+
+        filaAcciones.setOpaque(false);
+
+        filaAcciones.setMaximumSize(
+                new Dimension(
+                        Integer.MAX_VALUE,
+                        48
+                )
+        );
+
+        botonMover.setText("Mover");
+        botonRetirar.setText("Retirar");
+
+        filaAcciones.add(
+                botonMover
+        );
+
+        filaAcciones.add(
+                botonRetirar
+        );
+
+        accionesInspector.add(
+                botonFicha
+        );
+
+        accionesInspector.add(
+                Box.createVerticalStrut(10)
+        );
+
+        accionesInspector.add(
+                filaAcciones
+        );
 
         inspector.add(etiquetaModo);
         inspector.add(Box.createVerticalStrut(12));
@@ -308,7 +399,10 @@ public class PanelPreparacion extends PanelPantallaJuego {
         inspector.add(Box.createVerticalGlue());
         inspector.add(accionesInspector);
 
-        centro.add(scrollMapa, BorderLayout.CENTER);
+        centro.add(
+        zonaMapa,
+        BorderLayout.CENTER
+        );
         centro.add(inspector, BorderLayout.EAST);
 
         JPanel pie = new JPanel(
@@ -1161,5 +1255,8 @@ public class PanelPreparacion extends PanelPantallaJuego {
                 || actual.getMessage().isBlank()
                 ? "Ocurrió un error inesperado."
                 : actual.getMessage();
+    }
+    public double getZoomMapa() {
+        return mapa.getZoom();
     }
 }

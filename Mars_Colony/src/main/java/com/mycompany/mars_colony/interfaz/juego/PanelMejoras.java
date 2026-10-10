@@ -173,11 +173,25 @@ public class PanelMejoras extends PanelPantallaJuego {
                 + " superada"
         );
 
-        etiquetaCapacidad.setText(
-                capacidadAntes
-                + "  →  "
-                + capacidadDespues
-        );
+        int capacidadActual =
+        partida.getEscuadron()
+                .getCapacidadTotal();
+
+        if (capacidadAntes < 0
+                || capacidadDespues < 0) {
+
+            etiquetaCapacidad.setText(
+                    capacidadActual
+                    + " puntos"
+            );
+
+        } else {
+            etiquetaCapacidad.setText(
+                    capacidadAntes
+                    + "  →  "
+                    + capacidadDespues
+            );
+        }
 
         botonPreparar.setText(
                 "PREPARAR MISIÓN "

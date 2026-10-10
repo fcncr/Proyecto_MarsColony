@@ -58,6 +58,10 @@ public class ServicioCampania {
         if (actual < partida.getTotalMisiones()) {
             siguiente = actual + 1;
         } else {
+            if (partida.isCampaniaFinalizada()) {
+                partida.reabrirCampania();
+            }
+
             siguiente = generarNumeroMisionExtra(partida);
         }
 
@@ -101,14 +105,7 @@ public class ServicioCampania {
     }
 
     public int generarNumeroMisionExtra(Partida partida) {
-
         validarPartida(partida);
-
-        if (partida.isCampaniaFinalizada()) {
-            throw new IllegalStateException(
-                    "La campania ya fue finalizada."
-            );
-        }
 
         if (!partida.puedeFinalizarCampania()) {
             throw new IllegalStateException(
@@ -160,10 +157,6 @@ public class ServicioCampania {
     public boolean puedeAvanzar(Partida partida) {
         validarPartida(partida);
 
-        if (partida.isCampaniaFinalizada()) {
-            return false;
-        }
-
         int actual = partida.getMisionActual();
 
         if (!partida.fueMisionSuperada(actual)) {
@@ -171,7 +164,7 @@ public class ServicioCampania {
         }
 
         if (actual < partida.getTotalMisiones()) {
-            return true;
+            return !partida.isCampaniaFinalizada();
         }
 
         return partida.puedeFinalizarCampania();

@@ -18,8 +18,8 @@ public final class NavegadorBatalla {
 
     private static final int[][] DIRECCIONES = {
         {-1, -1}, {-1, 0}, {-1, 1},
-        {0, -1}, {0, 1},
-        {1, -1}, {1, 0}, {1, 1}
+        {0, -1},           {0, 1},
+        {1, -1},  {1, 0},  {1, 1}
     };
 
     private NavegadorBatalla() {
@@ -92,7 +92,11 @@ public final class NavegadorBatalla {
 
         Posicion inicio = atacante.getPosicion();
 
-        if (puedeAtacarDesde(atacante, inicio, objetivo)) {
+        if (puedeAtacarDesde(
+                atacante,
+                inicio,
+                objetivo)) {
+
             return List.of(inicio);
         }
 
@@ -106,7 +110,10 @@ public final class NavegadorBatalla {
         while (!pendientes.isEmpty()) {
             Posicion actual = pendientes.remove();
 
-            for (Posicion vecino : obtenerVecinos(tablero, actual)) {
+            for (Posicion vecino : obtenerVecinos(
+                    tablero,
+                    actual)) {
+
                 if (visitadas.contains(vecino)) {
                     continue;
                 }
@@ -119,6 +126,7 @@ public final class NavegadorBatalla {
                         tablero,
                         actual,
                         vecino)) {
+
                     continue;
                 }
 
@@ -145,9 +153,9 @@ public final class NavegadorBatalla {
     }
 
     public static Posicion buscarSiguientePasoAereo(
-        Tablero tablero,
-        ComponenteCombate atacante,
-        ComponenteCombate objetivo) {
+            Tablero tablero,
+            ComponenteCombate atacante,
+            ComponenteCombate objetivo) {
 
         if (tablero == null
                 || atacante == null
@@ -159,7 +167,11 @@ public final class NavegadorBatalla {
 
         Posicion inicio = atacante.getPosicion();
 
-        if (puedeAtacarDesde(atacante, inicio, objetivo)) {
+        if (puedeAtacarDesde(
+                atacante,
+                inicio,
+                objetivo)) {
+
             return null;
         }
 
@@ -173,33 +185,60 @@ public final class NavegadorBatalla {
         while (!pendientes.isEmpty()) {
             Posicion actual = pendientes.remove();
 
-            for (Posicion vecino : obtenerVecinos(tablero, actual)) {
-                if (visitadas.contains(vecino)) {
-                    continue;
-                }
+            for (Posicion vecino : obtenerVecinos(
+                    tablero,
+                    actual)) {
 
-                if (!tablero.estaLibre(vecino)) {
+                if (visitadas.contains(vecino)) {
                     continue;
                 }
 
                 visitadas.add(vecino);
                 anterior.put(vecino, actual);
 
-                if (puedeAtacarDesde(atacante, vecino, objetivo)) {
+                boolean puedeTerminarAqui =
+                        tablero.estaLibre(vecino)
+                        && puedeAtacarDesde(
+                                atacante,
+                                vecino,
+                                objetivo
+                        );
+
+                if (puedeTerminarAqui) {
                     List<Posicion> ruta = reconstruirRuta(
                             anterior,
                             inicio,
                             vecino
                     );
 
-                    if (ruta.size() > 1) {
-                        return ruta.get(1);
-                    }
-
-                    return null;
+                    return buscarPrimeraCasillaLibreAerea(
+                            tablero,
+                            ruta
+                    );
                 }
 
                 pendientes.add(vecino);
+            }
+        }
+
+        return null;
+    }
+
+    private static Posicion buscarPrimeraCasillaLibreAerea(
+            Tablero tablero,
+            List<Posicion> ruta) {
+
+        if (tablero == null
+                || ruta == null
+                || ruta.size() < 2) {
+            return null;
+        }
+
+        for (int i = 1; i < ruta.size(); i++) {
+            Posicion posicion = ruta.get(i);
+
+            if (tablero.estaLibre(posicion)) {
+                return posicion;
             }
         }
 
@@ -218,14 +257,16 @@ public final class NavegadorBatalla {
             return false;
         }
 
-        int diferenciaFila
-                = destino.getFila() - origen.getFila();
+        int diferenciaFila =
+                destino.getFila()
+                - origen.getFila();
 
-        int diferenciaColumna
-                = destino.getColumna() - origen.getColumna();
+        int diferenciaColumna =
+                destino.getColumna()
+                - origen.getColumna();
 
-        boolean diagonal
-                = Math.abs(diferenciaFila) == 1
+        boolean diagonal =
+                Math.abs(diferenciaFila) == 1
                 && Math.abs(diferenciaColumna) == 1;
 
         if (!diagonal) {
@@ -281,12 +322,15 @@ public final class NavegadorBatalla {
             Tablero tablero,
             Posicion posicion) {
 
-        List<Posicion> vecinos = new ArrayList<>(8);
+        List<Posicion> vecinos =
+                new ArrayList<>(8);
 
         for (int[] direccion : DIRECCIONES) {
             Posicion vecino = new Posicion(
-                    posicion.getFila() + direccion[0],
-                    posicion.getColumna() + direccion[1]
+                    posicion.getFila()
+                    + direccion[0],
+                    posicion.getColumna()
+                    + direccion[1]
             );
 
             if (tablero.estaDentro(vecino)) {
@@ -302,7 +346,9 @@ public final class NavegadorBatalla {
             Posicion inicio,
             Posicion destino) {
 
-        List<Posicion> ruta = new ArrayList<>();
+        List<Posicion> ruta =
+                new ArrayList<>();
+
         Posicion actual = destino;
 
         while (actual != null) {
@@ -316,7 +362,10 @@ public final class NavegadorBatalla {
         }
 
         if (ruta.isEmpty()
-                || !ruta.get(ruta.size() - 1).equals(inicio)) {
+                || !ruta.get(
+                        ruta.size() - 1
+                ).equals(inicio)) {
+
             return Collections.emptyList();
         }
 

@@ -27,31 +27,53 @@ public class ControladorAdmin {
         this.sesionActiva = false;
     }
 
-    public boolean iniciarSesion(String u, char[] clave) {
-        sesionActiva = auth.autenticar(u, clave);
+    public boolean iniciarSesion(String usuario, char[] clave) {
+        sesionActiva = auth.autenticar(usuario, clave);
         return sesionActiva;
     }
 
-    public void crear(ConfiguracionComponente c) {
-        exigirSesionActiva();
-        catalogo.crear(c);
+    public void cerrarSesion() {
+        sesionActiva = false;
     }
 
-    public void modificar(String id, ConfiguracionComponente c) {
+    public boolean haySesionActiva() {
+        return sesionActiva;
+    }
+
+    public void crear(ConfiguracionComponente configuracion) {
         exigirSesionActiva();
-        catalogo.modificar(id, c);
+        catalogo.crear(configuracion);
+    }
+
+    public void modificar(String id, ConfiguracionComponente configuracion) {
+        exigirSesionActiva();
+        catalogo.modificar(id, configuracion);
     }
 
     public void desactivar(String id) {
         exigirSesionActiva();
         catalogo.desactivar(id);
     }
+    public void activar(String id) {
+        exigirSesionActiva();
+        catalogo.activar(id);
+    }
+
+    public ConfiguracionComponente consultar(String id) {
+        exigirSesionActiva();
+        return catalogo.consultar(id);
+    }
+
+    public List<ConfiguracionComponente> listar() {
+        exigirSesionActiva();
+        return catalogo.listar();
+    }
 
     public void guardar() {
         exigirSesionActiva();
         repo.guardar(catalogo);
     }
-    
+
     public void cargar() {
         exigirSesionActiva();
         catalogo = repo.cargar();
@@ -59,18 +81,9 @@ public class ControladorAdmin {
 
     private void exigirSesionActiva() {
         if (!sesionActiva) {
-            throw new IllegalStateException("Debe iniciar sesión como administrador para realizar esta operación.");
+            throw new IllegalStateException(
+                    "Debe iniciar sesión como administrador para realizar esta operación."
+            );
         }
     }
-    
-    public ConfiguracionComponente consultar(String id) {
-        exigirSesionActiva();
-        return catalogo.consultar(id);
-    }
-    
-    public List<ConfiguracionComponente> listar() {
-        exigirSesionActiva();
-        return catalogo.listar();
-    }
-
 }

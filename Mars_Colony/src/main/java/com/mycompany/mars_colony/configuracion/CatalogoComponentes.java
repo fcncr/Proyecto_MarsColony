@@ -78,6 +78,18 @@ public class CatalogoComponentes implements Serializable {
 
         configuracion.desactivar();
     }
+    
+    public void activar(String id) {
+        ConfiguracionComponente configuracion = consultar(id);
+
+        if (configuracion == null) {
+            throw new IllegalArgumentException(
+                    "No existe una configuración con el id: " + id
+            );
+        }
+
+        configuracion.activar();
+    }
 
     public List<ConfiguracionComponente> disponibles(int mision) {
         if (mision < 1) {

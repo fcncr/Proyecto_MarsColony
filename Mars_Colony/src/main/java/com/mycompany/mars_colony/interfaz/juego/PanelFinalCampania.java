@@ -18,6 +18,9 @@ import javax.swing.SwingConstants;
 
 public class PanelFinalCampania extends PanelPantallaJuego {
 
+    private static final int ANCHO_BOTONES = 650;
+    private static final int SEPARACION_BOTONES = 18;
+
     private final ControladorJuego controlador;
     private final Runnable accionFinalizar;
     private final Runnable accionGenerarExtra;
@@ -26,19 +29,49 @@ public class PanelFinalCampania extends PanelPantallaJuego {
     private final BotonMars botonFinalizar;
     private final BotonMars botonExtra;
 
-    public PanelFinalCampania(ControladorJuego controlador, Runnable accionFinalizar, Runnable accionGenerarExtra) {
-        super("CAMPAÑA COMPLETADA", "El final de una expedición puede ser el inicio de otra", "");
+    public PanelFinalCampania(
+            ControladorJuego controlador,
+            Runnable accionFinalizar,
+            Runnable accionGenerarExtra) {
+
+        super(
+                "CAMPAÑA COMPLETADA",
+                "El final de una expedición puede ser el inicio de otra",
+                ""
+        );
 
         this.controlador = controlador;
         this.accionFinalizar = accionFinalizar;
         this.accionGenerarExtra = accionGenerarExtra;
 
-        JPanel escenario = new JPanel(new GridBagLayout());
+        JPanel escenario = new JPanel(
+                new GridBagLayout()
+        );
+
         escenario.setOpaque(false);
 
         PanelMars tarjeta = new PanelMars();
-        tarjeta.setPreferredSize(new Dimension(880, 560));
-        tarjeta.setLayout(new BoxLayout(tarjeta, BoxLayout.Y_AXIS));
+
+        tarjeta.setPreferredSize(
+                new Dimension(
+                        880,
+                        560
+                )
+        );
+
+        tarjeta.setMinimumSize(
+                new Dimension(
+                        720,
+                        520
+                )
+        );
+
+        tarjeta.setLayout(
+                new BoxLayout(
+                        tarjeta,
+                        BoxLayout.Y_AXIS
+                )
+        );
 
         etiquetaProgreso = new JLabel(
                 "10 / 10 MISIONES SUPERADAS",
@@ -46,18 +79,45 @@ public class PanelFinalCampania extends PanelPantallaJuego {
         );
 
         etiquetaProgreso.setOpaque(true);
-        etiquetaProgreso.setBackground(TemaMars.FONDO);
-        etiquetaProgreso.setForeground(TemaMars.ACCION);
-        etiquetaProgreso.setFont(TemaMars.textoDestacado());
-        etiquetaProgreso.setMaximumSize(
-                new Dimension(Integer.MAX_VALUE, 42)
+        etiquetaProgreso.setBackground(
+                TemaMars.FONDO
         );
-        etiquetaProgreso.setAlignmentX(CENTER_ALIGNMENT);
 
-        JLabel titulo = new JLabel("La colonia está a salvo.");
-        titulo.setFont(TemaMars.tituloGrande().deriveFont(38f));
-        titulo.setForeground(TemaMars.TEXTO);
-        titulo.setAlignmentX(CENTER_ALIGNMENT);
+        etiquetaProgreso.setForeground(
+                TemaMars.ACCION
+        );
+
+        etiquetaProgreso.setFont(
+                TemaMars.textoDestacado()
+        );
+
+        etiquetaProgreso.setMaximumSize(
+                new Dimension(
+                        Integer.MAX_VALUE,
+                        42
+                )
+        );
+
+        etiquetaProgreso.setAlignmentX(
+                CENTER_ALIGNMENT
+        );
+
+        JLabel titulo = new JLabel(
+                "La colonia está a salvo."
+        );
+
+        titulo.setFont(
+                TemaMars.tituloGrande()
+                        .deriveFont(38f)
+        );
+
+        titulo.setForeground(
+                TemaMars.TEXTO
+        );
+
+        titulo.setAlignmentX(
+                CENTER_ALIGNMENT
+        );
 
         JLabel nucleo = new JLabel(
                 GestorImagenes.cargar(
@@ -67,56 +127,184 @@ public class PanelFinalCampania extends PanelPantallaJuego {
                 )
         );
 
-        nucleo.setAlignmentX(CENTER_ALIGNMENT);
+        nucleo.setAlignmentX(
+                CENTER_ALIGNMENT
+        );
 
         JLabel mensaje = new JLabel(
                 "Puedes finalizar aquí o seguir explorando."
         );
 
-        mensaje.setFont(TemaMars.textoNormal());
-        mensaje.setForeground(TemaMars.TEXTO);
-        mensaje.setAlignmentX(CENTER_ALIGNMENT);
+        mensaje.setFont(
+                TemaMars.textoNormal()
+        );
 
-        JPanel acciones = new JPanel(new GridLayout(1, 2, 18, 0));
-        acciones.setOpaque(false);
-        acciones.setAlignmentX(LEFT_ALIGNMENT);
-        acciones.setMaximumSize(
-                new Dimension(Integer.MAX_VALUE, TemaMars.ALTURA_BOTON)
+        mensaje.setForeground(
+                TemaMars.TEXTO
+        );
+
+        mensaje.setAlignmentX(
+                CENTER_ALIGNMENT
         );
 
         botonFinalizar = BotonMars.secundario(
                 "FINALIZAR CAMPAÑA"
         );
 
-        botonFinalizar.addActionListener(e -> accionFinalizar.run());
+        botonFinalizar.addActionListener(
+                e -> accionFinalizar.run()
+        );
 
-        botonExtra = BotonMars.primario("GENERAR MISIÓN 11");
-        botonExtra.addActionListener(e -> accionGenerarExtra.run());
+        botonExtra = BotonMars.primario(
+                "GENERAR MISIÓN 11"
+        );
 
-        acciones.add(botonFinalizar);
-        acciones.add(botonExtra);
+        botonExtra.addActionListener(
+                e -> accionGenerarExtra.run()
+        );
 
-        tarjeta.add(etiquetaProgreso);
-        tarjeta.add(Box.createVerticalStrut(22));
-        tarjeta.add(titulo);
-        tarjeta.add(Box.createVerticalStrut(10));
-        tarjeta.add(nucleo);
-        tarjeta.add(Box.createVerticalStrut(10));
-        tarjeta.add(mensaje);
-        tarjeta.add(Box.createVerticalGlue());
-        tarjeta.add(acciones);
+        configurarBotonFinal(
+                botonFinalizar
+        );
 
-        GridBagConstraints gbc = new GridBagConstraints();
+        configurarBotonFinal(
+                botonExtra
+        );
+
+        JPanel acciones = new JPanel(
+                new GridLayout(
+                        1,
+                        2,
+                        SEPARACION_BOTONES,
+                        0
+                )
+        );
+
+        acciones.setOpaque(false);
+
+        acciones.setPreferredSize(
+                new Dimension(
+                        ANCHO_BOTONES,
+                        TemaMars.ALTURA_BOTON
+                )
+        );
+
+        acciones.setMinimumSize(
+                new Dimension(
+                        ANCHO_BOTONES,
+                        TemaMars.ALTURA_BOTON
+                )
+        );
+
+        acciones.setMaximumSize(
+                new Dimension(
+                        ANCHO_BOTONES,
+                        TemaMars.ALTURA_BOTON
+                )
+        );
+
+        acciones.setAlignmentX(
+                CENTER_ALIGNMENT
+        );
+
+        acciones.add(
+                botonFinalizar
+        );
+
+        acciones.add(
+                botonExtra
+        );
+
+        tarjeta.add(
+                etiquetaProgreso
+        );
+
+        tarjeta.add(
+                Box.createVerticalStrut(22)
+        );
+
+        tarjeta.add(
+                titulo
+        );
+
+        tarjeta.add(
+                Box.createVerticalStrut(10)
+        );
+
+        tarjeta.add(
+                nucleo
+        );
+
+        tarjeta.add(
+                Box.createVerticalStrut(10)
+        );
+
+        tarjeta.add(
+                mensaje
+        );
+
+        tarjeta.add(
+                Box.createVerticalGlue()
+        );
+
+        tarjeta.add(
+                acciones
+        );
+
+        tarjeta.add(
+                Box.createVerticalStrut(8)
+        );
+
+        GridBagConstraints gbc =
+                new GridBagConstraints();
+
         gbc.weightx = 1;
         gbc.weighty = 1;
+        gbc.anchor =
+                GridBagConstraints.CENTER;
 
-        escenario.add(tarjeta, gbc);
+        escenario.add(
+                tarjeta,
+                gbc
+        );
 
-        setContenido(escenario);
+        setContenido(
+                escenario
+        );
+    }
+
+    private void configurarBotonFinal(
+            BotonMars boton) {
+
+        boton.setHorizontalAlignment(
+                SwingConstants.CENTER
+        );
+
+        boton.setPreferredSize(
+                new Dimension(
+                        300,
+                        TemaMars.ALTURA_BOTON
+                )
+        );
+
+        boton.setMinimumSize(
+                new Dimension(
+                        280,
+                        TemaMars.ALTURA_BOTON
+                )
+        );
+
+        boton.setMaximumSize(
+                new Dimension(
+                        320,
+                        TemaMars.ALTURA_BOTON
+                )
+        );
     }
 
     public void preparar() {
-        Partida partida = controlador.consultarEstado();
+        Partida partida =
+                controlador.consultarEstado();
 
         if (partida == null) {
             return;
@@ -124,7 +312,8 @@ public class PanelFinalCampania extends PanelPantallaJuego {
 
         setContexto(
                 "COMANDANTE "
-                + partida.getNombreComandante().toUpperCase()
+                + partida.getNombreComandante()
+                        .toUpperCase()
         );
 
         etiquetaProgreso.setText(
@@ -143,11 +332,16 @@ public class PanelFinalCampania extends PanelPantallaJuego {
         );
 
         botonFinalizar.setEnabled(
-                controlador.puedeFinalizarCampania()
+                controlador
+                        .puedeFinalizarCampania()
         );
 
         botonExtra.setEnabled(
-                controlador.puedeAvanzarMision()
+                controlador
+                        .puedeAvanzarMision()
         );
+
+        revalidate();
+        repaint();
     }
 }

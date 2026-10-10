@@ -4,6 +4,9 @@ import com.mycompany.mars_colony.modelo.combate.UnidadActiva;
 
 public class HiloUnidad implements Runnable {
 
+    private static final double VELOCIDAD_BATALLA = 0.70;
+    private static final long INTERVALO_ACTUALIZACION_MS = 100;
+
     private UnidadActiva unidad;
     private MotorBatalla motor;
     private Thread hilo;
@@ -11,11 +14,15 @@ public class HiloUnidad implements Runnable {
 
     public HiloUnidad(UnidadActiva unidad, MotorBatalla motor) {
         if (unidad == null) {
-            throw new IllegalArgumentException("La unidad no puede ser null.");
+            throw new IllegalArgumentException(
+                    "La unidad no puede ser null."
+            );
         }
 
         if (motor == null) {
-            throw new IllegalArgumentException("El motor no puede ser null.");
+            throw new IllegalArgumentException(
+                    "El motor no puede ser null."
+            );
         }
 
         this.unidad = unidad;
@@ -36,23 +43,45 @@ public class HiloUnidad implements Runnable {
 
     @Override
     public void run() {
+        long tiempoAnterior =
+                System.currentTimeMillis();
 
-        long tiempoAnterior = System.currentTimeMillis();
+        while (!cancelar
+                && motor.estaEnEjecucion()
+                && unidad.estaOperativa()) {
 
-        while (!cancelar && motor.estaEnEjecucion() && unidad.estaOperativa()) {
+            long tiempoActual =
+                    System.currentTimeMillis();
 
-            long tiempoActual = System.currentTimeMillis();
-            long dtMs = tiempoActual - tiempoAnterior;
-            tiempoAnterior = tiempoActual;
+            long dtReal =
+                    tiempoActual - tiempoAnterior;
 
-            unidad.actualizarTiempos(dtMs);
+            tiempoAnterior =
+                    tiempoActual;
 
-            unidad.ejecutarCiclo(motor, dtMs);
+            long dtSimulado =
+                    Math.max(
+                            1,
+                            Math.round(
+                                    dtReal
+                                    * VELOCIDAD_BATALLA
+                            )
+                    );
+
+            unidad.actualizarTiempos(
+                    dtSimulado
+            );
+
+            unidad.ejecutarCiclo(
+                    motor,
+                    dtSimulado
+            );
 
             try {
-                Thread.sleep(100);
+                Thread.sleep(
+                        INTERVALO_ACTUALIZACION_MS
+                );
             } catch (InterruptedException ex) {
-
                 if (cancelar) {
                     break;
                 }
@@ -84,6 +113,7 @@ public class HiloUnidad implements Runnable {
     }
 
     public boolean estaActivo() {
-        return hilo != null && hilo.isAlive();
+        return hilo != null
+                && hilo.isAlive();
     }
 }

@@ -228,4 +228,13 @@ public class Partida implements Serializable {
         campaniaFinalizada = true;
         return true;
     }
+    public void reabrirCampania() {
+        if (!puedeFinalizarCampania()) {
+            throw new IllegalStateException(
+                    "La campaña no puede reabrirse porque todavía no se completaron las misiones principales."
+            );
+        }
+
+        campaniaFinalizada = false;
+    }
 }

@@ -123,6 +123,25 @@ public class PanelBatalla extends PanelPantallaJuego {
         scrollMapa.getViewport().setBackground(
                 TemaMars.FONDO_PROFUNDO
         );
+        
+        PanelControlesZoomMapa controlesZoom =
+        new PanelControlesZoomMapa(mapa);
+
+        JPanel zonaMapa = new JPanel(
+                new BorderLayout(0, 6)
+        );
+
+        zonaMapa.setOpaque(false);
+
+        zonaMapa.add(
+                controlesZoom,
+                BorderLayout.NORTH
+        );
+
+        zonaMapa.add(
+                scrollMapa,
+                BorderLayout.CENTER
+        );
 
         PanelMars inspector =
                 new PanelMars();
@@ -338,8 +357,8 @@ public class PanelBatalla extends PanelPantallaJuego {
         inspector.add(pista);
 
         centro.add(
-                scrollMapa,
-                BorderLayout.CENTER
+            zonaMapa,
+            BorderLayout.CENTER
         );
 
         centro.add(
@@ -826,5 +845,14 @@ public class PanelBatalla extends PanelPantallaJuego {
     private String formatear(double valor) {
         return new DecimalFormat("0.##")
                 .format(valor);
+    }
+    public void setZoomMapa(double zoom) {
+    mapa.establecerZoomSinAnimacion(
+            zoom
+    );
+}
+
+    public double getZoomMapa() {
+        return mapa.getZoom();
     }
 }

@@ -338,7 +338,14 @@ public class VentanaJuego extends JFrame {
     }
 
     public void mostrarBatalla() {
+        if (PREPARACION.equals(pantallaActual)) {
+            panelBatalla.setZoomMapa(
+                    panelPreparacion.getZoomMapa()
+            );
+        }
+
         panelBatalla.preparar();
+
         mostrar(BATALLA);
 
         iniciarSeguimientoBatalla();
@@ -549,9 +556,17 @@ public class VentanaJuego extends JFrame {
         Partida partida =
                 controlador.consultarEstado();
 
-        if (partida == null
-                || partida.getMision() == null) {
+        if (partida == null) {
+            mostrarCampania();
+            return;
+        }
 
+        if (partida.isCampaniaFinalizada()) {
+            mostrarFinalCampania();
+            return;
+        }
+
+        if (partida.getMision() == null) {
             mostrarCampania();
             return;
         }
@@ -655,6 +670,11 @@ public class VentanaJuego extends JFrame {
         if (partida.getMision().getEstado()
                 != EstadoMision.VICTORIA) {
 
+            return;
+        }
+
+        if (partida.isCampaniaFinalizada()) {
+            mostrarFinalCampania();
             return;
         }
 
