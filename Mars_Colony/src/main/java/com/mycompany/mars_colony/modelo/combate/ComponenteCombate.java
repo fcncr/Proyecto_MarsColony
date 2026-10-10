@@ -16,6 +16,7 @@ import java.util.UUID;
 public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
 
     private static final long serialVersionUID = 1L;
+    private static final long DURACION_ESTADO_VISUAL_MS = 180;
 
     private String id;
     private String idConfiguracion;
@@ -32,10 +33,11 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
     private Posicion posicion;
     private Posicion posicionInicial;
 
-    private EstadoVisual estadoVisual;
+    private volatile EstadoVisual estadoVisual;
 
     private long restanteAtaqueMs;
     private long restanteMovimientoMs;
+    private long restanteVisualMs;
 
     private RegistroCombate registro;
     private List<RegistroCrecimiento> crecimientos;
@@ -59,6 +61,7 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
         this.estadoVisual = EstadoVisual.NORMAL;
         this.restanteAtaqueMs = 0;
         this.restanteMovimientoMs = 0;
+        this.restanteVisualMs = 0;
         this.registro = new RegistroCombate();
         this.crecimientos = new ArrayList<>();
     }
@@ -87,6 +90,26 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
 
     public ImagenesEstado getImagenes() {
         return imagenes;
+    }
+
+    public String getRutaImagenActual() {
+        if (imagenes == null) {
+            return null;
+        }
+
+        String ruta = imagenes.getNormal();
+
+        if (estadoVisual == EstadoVisual.MOVIMIENTO) {
+            ruta = imagenes.getMovimiento();
+        } else if (estadoVisual == EstadoVisual.ATAQUE) {
+            ruta = imagenes.getAtaque();
+        }
+
+        if (ruta == null || ruta.isBlank()) {
+            ruta = imagenes.getNormal();
+        }
+
+        return ruta;
     }
 
     public double getVidaActual() {
@@ -189,6 +212,7 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
         if (vidaActual <= 0) {
             vidaActual = 0;
             estadoVisual = EstadoVisual.DESTRUIDO;
+            restanteVisualMs = 0;
         }
 
         return danioEfectivo;
@@ -213,6 +237,10 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
 
         if (estadisticas.getDanioGolpe() <= 0 || posicion == null || objetivo.getPosicion() == null) {
             return false;
+        }
+
+        if (estadisticas.getAlcance() == 1 && posicion.esAdyacente(objetivo.getPosicion())) {
+            return true;
         }
 
         double distancia = posicion.distanciaA(objetivo.getPosicion());
@@ -251,6 +279,9 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
 
         if (this.vidaActual == 0) {
             estadoVisual = EstadoVisual.DESTRUIDO;
+            restanteVisualMs = 0;
+        } else if (estadoVisual == EstadoVisual.DESTRUIDO) {
+            estadoVisual = EstadoVisual.NORMAL;
         }
     }
 
@@ -271,6 +302,11 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
     }
 
     public void setEstadoVisual(EstadoVisual estadoVisual) {
+        if (estadoVisual == null) {
+            this.estadoVisual = EstadoVisual.NORMAL;
+            return;
+        }
+
         this.estadoVisual = estadoVisual;
     }
 
@@ -287,6 +323,7 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
         estadoVisual = EstadoVisual.NORMAL;
         restanteAtaqueMs = 0;
         restanteMovimientoMs = 0;
+        restanteVisualMs = 0;
         registro = new RegistroCombate();
     }
 
@@ -295,16 +332,18 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
             return;
         }
 
-        restanteAtaqueMs = Math.max(
-                0,
-                restanteAtaqueMs - dtMs
-        );
+        restanteAtaqueMs = Math.max(0, restanteAtaqueMs - dtMs);
+        restanteMovimientoMs = Math.max(0, restanteMovimientoMs - dtMs);
 
-        restanteMovimientoMs = Math.max(
-                0,
-                restanteMovimientoMs - dtMs
-        );
+        if (restanteVisualMs > 0) {
+            restanteVisualMs = Math.max(0, restanteVisualMs - dtMs);
+        }
+
+        if (restanteVisualMs == 0 && estaOperativo() && estadoVisual != EstadoVisual.NORMAL) {
+            estadoVisual = EstadoVisual.NORMAL;
+        }
     }
+
     public boolean puedeEjecutarAtaque() {
         if (!estaOperativo()) {
             return false;
@@ -320,17 +359,17 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
 
         return restanteAtaqueMs <= 0;
     }
-    
+
     public void consumirAtaque() {
         if (getFrecuenciaAtaque() <= 0) {
             return;
         }
 
         double intervaloAtaqueMs = 1000.0 / getFrecuenciaAtaque();
-
         restanteAtaqueMs = (long) Math.ceil(intervaloAtaqueMs);
+        activarEstadoVisual(EstadoVisual.ATAQUE);
     }
-    
+
     public boolean puedeMoverseAhora() {
         if (!estaOperativo()) {
             return false;
@@ -344,7 +383,7 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
 
         return restanteMovimientoMs <= 0;
     }
-    
+
     public void consumirMovimiento() {
         long intervalo = getEstadisticas().getIntervaloMovimientoMs();
 
@@ -353,5 +392,15 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
         }
 
         restanteMovimientoMs = intervalo;
+        activarEstadoVisual(EstadoVisual.MOVIMIENTO);
+    }
+
+    private void activarEstadoVisual(EstadoVisual nuevoEstado) {
+        if (!estaOperativo()) {
+            return;
+        }
+
+        estadoVisual = nuevoEstado;
+        restanteVisualMs = DURACION_ESTADO_VISUAL_MS;
     }
 }

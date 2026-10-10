@@ -274,6 +274,12 @@ public class ControladorJuego {
             throw new IllegalStateException("No fue posible seleccionar la defensa dentro de la capacidad del escuadrón.");
         }
 
+        Mision misionActual = partida.getMision();
+
+        if (misionActual != null) {
+            misionActual.agregarParticipante(defensa);
+        }
+
         return defensa;
     }
 
@@ -283,7 +289,8 @@ public class ControladorJuego {
         }
 
         Mision mision = partida.getMision();
-
+        
+        sincronizarDefensasSeleccionadas();
         validarMisionParaBatalla(mision);
 
         MotorBatalla nuevoMotor = new MotorBatalla(partida);
@@ -519,5 +526,22 @@ public class ControladorJuego {
         }
 
         return nombre;
+    }
+    
+    private void sincronizarDefensasSeleccionadas() {
+        Mision mision = partida.getMision();
+        Escuadron escuadron = partida.getEscuadron();
+
+        if (mision == null || escuadron == null) {
+            return;
+        }
+
+        mision.registrarParticipantes();
+
+        for (Defensa defensa : escuadron.getDefensas()) {
+            if (defensa != null && escuadron.getSeleccionadas().contains(defensa.getId())) {
+                mision.agregarParticipante(defensa);
+            }
+        }
     }
 }

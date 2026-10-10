@@ -108,4 +108,10 @@ public class Mision implements Serializable {
     public boolean isGenerada() {
         return generada;
     }
+    
+    public void agregarParticipante(ComponenteCombate participante) {
+        if (participante != null && !participantes.contains(participante)) {
+            participantes.add(participante);
+        }
+    }
 }

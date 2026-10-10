@@ -24,12 +24,18 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.Image;
 import java.awt.Insets;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListCellRenderer;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
@@ -49,11 +55,13 @@ public class VentanaJuego extends JFrame {
     private static final int INTERVALO_REFRESCO_BATALLA = 100;
 
     private final ControladorJuego controlador;
+    private final Map<String, ImageIcon> cacheIconos;
 
     private final JLabel etiquetaComandante;
     private final JLabel etiquetaMision;
     private final JLabel etiquetaEstadoMision;
     private final JLabel etiquetaCampania;
+    private final JLabel etiquetaCoordenadaCasilla;
 
     private final JLabel etiquetaCapacidadTotal;
     private final JLabel etiquetaCapacidadUtilizada;
@@ -101,11 +109,13 @@ public class VentanaJuego extends JFrame {
         }
 
         this.controlador = controlador;
+        this.cacheIconos = new HashMap<>();
 
         this.etiquetaComandante = new JLabel("-");
         this.etiquetaMision = new JLabel("-");
         this.etiquetaEstadoMision = new JLabel("-");
         this.etiquetaCampania = new JLabel("-");
+        this.etiquetaCoordenadaCasilla = new JLabel("Casilla: -");
 
         this.etiquetaCapacidadTotal = new JLabel("-");
         this.etiquetaCapacidadUtilizada = new JLabel("-");
@@ -225,7 +235,11 @@ public class VentanaJuego extends JFrame {
         panelContenedorCuadricula.removeAll();
         panelContenedorCuadricula.add(panelCuadricula);
 
+        JPanel panelInferior = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        panelInferior.add(etiquetaCoordenadaCasilla);
+
         panelTablero.add(panelContenedorCuadricula, BorderLayout.CENTER);
+        panelTablero.add(panelInferior, BorderLayout.SOUTH);
     }
 
     private JPanel crearPanelLateral() {
@@ -394,7 +408,6 @@ public class VentanaJuego extends JFrame {
 
     private void actualizarDefensasDisponibles() {
         String idSeleccionado = null;
-
         Object seleccionActual = comboDefensasDisponibles.getSelectedItem();
 
         if (seleccionActual instanceof ConfiguracionComponente configuracion) {
@@ -462,7 +475,6 @@ public class VentanaJuego extends JFrame {
             for (int columna = 0; columna < tablero.getColumnas(); columna++) {
                 Posicion posicion = new Posicion(fila, columna);
                 OcupanteMapa ocupante = tablero.obtener(posicion);
-
                 actualizarBotonCasilla(botonesCasilla[fila][columna], posicion, ocupante);
             }
         }
@@ -482,7 +494,6 @@ public class VentanaJuego extends JFrame {
             for (int columna = 0; columna < tablero.getColumnas(); columna++) {
                 Posicion posicion = new Posicion(fila, columna);
                 JButton boton = crearBotonCasilla(posicion);
-
                 botonesCasilla[fila][columna] = boton;
                 panelCuadricula.add(boton);
             }
@@ -510,12 +521,15 @@ public class VentanaJuego extends JFrame {
         boton.setMargin(new Insets(0, 0, 0, 0));
         boton.setFont(boton.getFont().deriveFont(Font.BOLD, 10f));
         boton.setFocusable(false);
+        boton.setIconTextGap(0);
         boton.addActionListener(e -> seleccionarCasilla(posicion));
 
         return boton;
     }
 
     private void actualizarBotonCasilla(JButton boton, Posicion posicion, OcupanteMapa ocupante) {
+        boton.setIcon(null);
+        boton.setText("");
         boton.setOpaque(true);
         boton.setForeground(Color.BLACK);
 
@@ -527,7 +541,10 @@ public class VentanaJuego extends JFrame {
         }
 
         if (ocupante instanceof NucleoOxigeno nucleo) {
-            boton.setText("N");
+            if (!aplicarImagenComponente(boton, nucleo)) {
+                boton.setText("N");
+            }
+
             boton.setBackground(new Color(255, 193, 7));
             boton.setToolTipText("Casilla " + posicion + " - Núcleo: " + nucleo.getNombre() + " - Vida: " + nucleo.getVidaActual() + "/" + nucleo.getVidaMaxima());
             return;
@@ -542,7 +559,10 @@ public class VentanaJuego extends JFrame {
         }
 
         if (ocupante instanceof Barrera barrera) {
-            boton.setText("B");
+            if (!aplicarImagenComponente(boton, barrera)) {
+                boton.setText("B");
+            }
+
             boton.setBackground(new Color(70, 130, 180));
             boton.setForeground(Color.WHITE);
             boton.setToolTipText("Casilla " + posicion + " - Barrera: " + barrera.getNombre() + " - Vida: " + barrera.getVidaActual() + "/" + barrera.getVidaMaxima());
@@ -550,7 +570,10 @@ public class VentanaJuego extends JFrame {
         }
 
         if (ocupante instanceof Defensa defensa) {
-            boton.setText("D");
+            if (!aplicarImagenComponente(boton, defensa)) {
+                boton.setText("D");
+            }
+
             boton.setBackground(new Color(46, 125, 50));
             boton.setForeground(Color.WHITE);
             boton.setToolTipText("Casilla " + posicion + " - Defensa: " + defensa.getNombre() + " - Vida: " + defensa.getVidaActual() + "/" + defensa.getVidaMaxima());
@@ -558,7 +581,10 @@ public class VentanaJuego extends JFrame {
         }
 
         if (ocupante instanceof Criatura criatura) {
-            boton.setText("C");
+            if (!aplicarImagenComponente(boton, criatura)) {
+                boton.setText("C");
+            }
+
             boton.setBackground(new Color(198, 40, 40));
             boton.setForeground(Color.WHITE);
             boton.setToolTipText("Casilla " + posicion + " - Criatura: " + criatura.getNombre() + " - Vida: " + criatura.getVidaActual() + "/" + criatura.getVidaMaxima());
@@ -570,7 +596,90 @@ public class VentanaJuego extends JFrame {
         boton.setToolTipText("Casilla " + posicion + " - " + ocupante.getClass().getSimpleName());
     }
 
+    private boolean aplicarImagenComponente(JButton boton, ComponenteCombate componente) {
+        if (boton == null || componente == null) {
+            return false;
+        }
+
+        String ruta = componente.getRutaImagenActual();
+        ImageIcon icono = cargarIcono(ruta);
+
+        if (icono == null) {
+            return false;
+        }
+
+        boton.setIcon(icono);
+        boton.setText("");
+
+        return true;
+    }
+
+    private ImageIcon cargarIcono(String ruta) {
+        if (ruta == null || ruta.isBlank()) {
+            return null;
+        }
+
+        String rutaLimpia = ruta.replace("\\", "/");
+
+        while (rutaLimpia.startsWith("/")) {
+            rutaLimpia = rutaLimpia.substring(1);
+        }
+
+        ImageIcon almacenado = cacheIconos.get(rutaLimpia);
+
+        if (almacenado != null) {
+            return almacenado;
+        }
+
+        URL recurso = getClass().getClassLoader().getResource(rutaLimpia);
+
+        if (recurso != null) {
+            ImageIcon icono = escalarIcono(new ImageIcon(recurso));
+
+            if (icono != null) {
+                cacheIconos.put(rutaLimpia, icono);
+            }
+
+            return icono;
+        }
+
+        try {
+            Path archivo = Path.of(rutaLimpia);
+
+            if (!Files.isRegularFile(archivo)) {
+                archivo = Path.of("src", "main", "resources").resolve(rutaLimpia);
+            }
+
+            if (!Files.isRegularFile(archivo)) {
+                return null;
+            }
+
+            ImageIcon icono = escalarIcono(new ImageIcon(archivo.toAbsolutePath().toString()));
+
+            if (icono != null) {
+                cacheIconos.put(rutaLimpia, icono);
+            }
+
+            return icono;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private ImageIcon escalarIcono(ImageIcon original) {
+        if (original == null || original.getIconWidth() <= 0 || original.getIconHeight() <= 0) {
+            return null;
+        }
+
+        int tamano = TAMANO_CASILLA - 3;
+        Image imagen = original.getImage().getScaledInstance(tamano, tamano, Image.SCALE_SMOOTH);
+
+        return new ImageIcon(imagen);
+    }
+
     private void seleccionarCasilla(Posicion posicion) {
+        etiquetaCoordenadaCasilla.setText("Casilla: " + posicion);
+
         if (configuracionPendiente != null) {
             intentarColocarDefensa(posicion);
             return;
@@ -855,6 +964,7 @@ public class VentanaJuego extends JFrame {
 
     private void prepararInterfazParaNuevaMision() {
         resultadoBatallaMostrado = false;
+        cacheIconos.clear();
         cancelarColocacion();
         limpiarDetalle();
         actualizarVista();
@@ -913,9 +1023,11 @@ public class VentanaJuego extends JFrame {
 
         try {
             controlador.crearNuevaPartida(nombre);
+            cacheIconos.clear();
             cancelarColocacion();
             limpiarDetalle();
             resultadoBatallaMostrado = false;
+            etiquetaCoordenadaCasilla.setText("Casilla: -");
             actualizarVista();
             JOptionPane.showMessageDialog(this, "Partida creada correctamente.", "Nueva partida", JOptionPane.INFORMATION_MESSAGE);
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -948,9 +1060,11 @@ public class VentanaJuego extends JFrame {
             }
 
             controlador.cargarPartida(seleccion.toString());
+            cacheIconos.clear();
             cancelarColocacion();
             limpiarDetalle();
             resultadoBatallaMostrado = false;
+            etiquetaCoordenadaCasilla.setText("Casilla: -");
             actualizarVista();
 
             JOptionPane.showMessageDialog(this, "Partida cargada correctamente.", "Cargar partida", JOptionPane.INFORMATION_MESSAGE);
@@ -991,6 +1105,7 @@ public class VentanaJuego extends JFrame {
         etiquetaCapacidadTotal.setText("-");
         etiquetaCapacidadUtilizada.setText("-");
         etiquetaCapacidadRestante.setText("-");
+        etiquetaCoordenadaCasilla.setText("Casilla: -");
 
         mostrarTableroVacio();
         limpiarDetalle();

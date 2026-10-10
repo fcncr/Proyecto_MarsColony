@@ -33,6 +33,14 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.DefaultTableModel;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import javax.swing.JFileChooser;
+import javax.swing.JTextField;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class VentanaConfiguracion extends JFrame {
 
@@ -68,10 +76,16 @@ public class VentanaConfiguracion extends JFrame {
     private final JButton botonDesactivar;
     private final JButton botonGuardar;
     private final JButton botonCargar;
+    
+    private final JButton botonSeleccionarImagenNormal;
+    private final JButton botonSeleccionarImagenMovimiento;
+    private final JButton botonSeleccionarImagenAtaque;
 
     private final DefaultTableModel modeloTabla;
     private final JTable tablaCatalogo;
     private String idSeleccionado;
+    
+    private static final Path DIRECTORIO_ASSETS_IMPORTADOS = Path.of("assets", "importados");
 
     public VentanaConfiguracion(ControladorAdmin controlador) {
         if (controlador == null) {
@@ -107,6 +121,9 @@ public class VentanaConfiguracion extends JFrame {
         this.botonDesactivar = new JButton("Desactivar");
         this.botonGuardar = new JButton("Guardar");
         this.botonCargar = new JButton("Cargar");
+        this.botonSeleccionarImagenNormal = new JButton("Seleccionar...");
+        this.botonSeleccionarImagenMovimiento = new JButton("Seleccionar...");
+        this.botonSeleccionarImagenAtaque = new JButton("Seleccionar...");
         this.idSeleccionado = null;
 
         String[] columnas = {"ID", "Nombre", "Tipo", "Vida", "Daño", "Frecuencia", "Alcance", "Radio", "Costo", "Misión", "Activo"};
@@ -118,6 +135,12 @@ public class VentanaConfiguracion extends JFrame {
         };
 
         this.tablaCatalogo = new JTable(modeloTabla);
+        
+        this.tablaCatalogo.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                cargarConfiguracionSeleccionada();
+            }
+        });
 
         configurarVentana();
         construirInterfaz();
@@ -204,9 +227,10 @@ public class VentanaConfiguracion extends JFrame {
         agregarCampo(panel, gbc, fila++, "Cantidad ataques:", campoCantidadAtaques);
         agregarCampo(panel, gbc, fila++, "Máx. objetivos:", campoMaxObjetivos);
         agregarCampo(panel, gbc, fila++, "Intervalo mov. ms:", campoIntervaloMovimiento);
-        agregarCampo(panel, gbc, fila++, "Imagen normal:", campoImagenNormal);
-        agregarCampo(panel, gbc, fila++, "Imagen movimiento:", campoImagenMovimiento);
-        agregarCampo(panel, gbc, fila++, "Imagen ataque:", campoImagenAtaque);
+        agregarCampo(panel, gbc, fila++, "Imagen normal:", crearSelectorAsset(campoImagenNormal, botonSeleccionarImagenNormal));
+        agregarCampo(panel, gbc, fila++, "Imagen movimiento:", crearSelectorAsset(campoImagenMovimiento, botonSeleccionarImagenMovimiento));
+        agregarCampo(panel, gbc, fila++, "Imagen ataque:", crearSelectorAsset(campoImagenAtaque, botonSeleccionarImagenAtaque));
+
 
         gbc.gridx = 0;
         gbc.gridy = fila;
@@ -287,6 +311,9 @@ public class VentanaConfiguracion extends JFrame {
         botonDesactivar.addActionListener(e -> desactivarConfiguracion());
         botonGuardar.addActionListener(e -> guardarCatalogo());
         botonCargar.addActionListener(e -> cargarCatalogo());
+        botonSeleccionarImagenNormal.addActionListener(e -> seleccionarAsset(campoImagenNormal));
+        botonSeleccionarImagenMovimiento.addActionListener(e -> seleccionarAsset(campoImagenMovimiento));
+        botonSeleccionarImagenAtaque.addActionListener(e -> seleccionarAsset(campoImagenAtaque));
 
         tablaCatalogo.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -315,6 +342,9 @@ public class VentanaConfiguracion extends JFrame {
         String imagenAtaque = campoImagenAtaque.getText().trim();
 
         EstadisticasCombate stats = new EstadisticasCombate(vida, danio, frecuencia, alcance, radio, costo, atacaAereo, cantidadAtaques, maxObjetivos, intervalo);
+        
+        validarAssetsSeleccionados();
+        
         ImagenesEstado imagenes = new ImagenesEstado(imagenNormal, imagenMovimiento, imagenAtaque);
 
         return new ConfiguracionComponente(id, nombre, tipo, stats, imagenes, mision);
@@ -585,5 +615,153 @@ public class VentanaConfiguracion extends JFrame {
             }
         });
     }
-       
+    
+    private void seleccionarAsset(JTextField campoDestino) {
+        JFileChooser selector = new JFileChooser();
+
+        selector.setDialogTitle("Seleccionar imagen / asset");
+        selector.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        selector.setAcceptAllFileFilterUsed(false);
+        selector.setFileFilter(new FileNameExtensionFilter("Imágenes PNG, JPG, JPEG y WEBP", "png", "jpg", "jpeg", "webp"));
+
+        int resultado = selector.showOpenDialog(this);
+
+        if (resultado != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File archivoSeleccionado = selector.getSelectedFile();
+
+        try {
+            String rutaRelativa = importarAsset(archivoSeleccionado.toPath());
+
+            campoDestino.setText(rutaRelativa);
+            campoDestino.setCaretPosition(0);
+            campoDestino.setToolTipText(rutaRelativa);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "No fue posible importar la imagen.\n" + e.getMessage(), "Error al seleccionar asset", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    private String importarAsset(Path archivoOrigen) throws IOException {
+        if (archivoOrigen == null || !Files.isRegularFile(archivoOrigen)) {
+            throw new IOException("El archivo seleccionado no es válido.");
+        }
+
+        Files.createDirectories(DIRECTORIO_ASSETS_IMPORTADOS);
+
+        String nombreOriginal = archivoOrigen.getFileName().toString();
+        String nombreSeguro = generarNombreAssetDisponible(nombreOriginal);
+        Path destino = DIRECTORIO_ASSETS_IMPORTADOS.resolve(nombreSeguro);
+
+        Files.copy(archivoOrigen, destino, StandardCopyOption.COPY_ATTRIBUTES);
+
+        return destino.toString().replace('\\', '/');
+    }
+    
+    private String generarNombreAssetDisponible(String nombreOriginal) {
+        Path destinoInicial = DIRECTORIO_ASSETS_IMPORTADOS.resolve(nombreOriginal);
+
+        if (!Files.exists(destinoInicial)) {
+            return nombreOriginal;
+        }
+
+        int punto = nombreOriginal.lastIndexOf('.');
+        String nombreBase = punto > 0 ? nombreOriginal.substring(0, punto) : nombreOriginal;
+        String extension = punto > 0 ? nombreOriginal.substring(punto) : "";
+
+        int numero = 2;
+
+        while (Files.exists(DIRECTORIO_ASSETS_IMPORTADOS.resolve(nombreBase + "_" + numero + extension))) {
+            numero++;
+        }
+
+        return nombreBase + "_" + numero + extension;
+    }
+    
+    private JPanel crearSelectorAsset(JTextField campo, JButton boton) {
+        JPanel panel = new JPanel(new BorderLayout(5, 0));
+
+        campo.setEditable(false);
+
+        panel.add(campo, BorderLayout.CENTER);
+        panel.add(boton, BorderLayout.EAST);
+
+        return panel;
+    }
+    
+    private void validarAssetsSeleccionados() {
+        if (campoImagenNormal.getText().isBlank()) {
+            throw new IllegalArgumentException("Debe seleccionar la imagen normal.");
+        }
+
+        if (campoImagenMovimiento.getText().isBlank()) {
+            throw new IllegalArgumentException("Debe seleccionar la imagen de movimiento.");
+        }
+
+        if (campoImagenAtaque.getText().isBlank()) {
+            throw new IllegalArgumentException("Debe seleccionar la imagen de ataque.");
+        }
+    }
+    
+    private void cargarConfiguracionEnFormulario(ConfiguracionComponente configuracion) {
+        if (configuracion == null) {
+            return;
+        }
+
+        EstadisticasCombate base = configuracion.getBase();
+        ImagenesEstado imagenes = configuracion.getImagenes();
+
+        campoId.setText(configuracion.getId());
+        campoNombre.setText(configuracion.getNombre());
+        comboTipo.setSelectedItem(configuracion.getTipo());
+        campoVida.setText(String.valueOf(base.getVidaMaxima()));
+        campoDanio.setText(String.valueOf(base.getDanioGolpe()));
+        campoFrecuencia.setText(String.valueOf(base.getFrecuenciaAtaque()));
+        campoAlcance.setText(String.valueOf(base.getAlcance()));
+        campoRadio.setText(String.valueOf(base.getRadioEfecto()));
+        campoCosto.setText(String.valueOf(base.getCostoCapacidad()));
+        campoMisionMinima.setText(String.valueOf(configuracion.getMisionMinima()));
+        campoCantidadAtaques.setText(String.valueOf(base.getCantidadAtaques()));
+        campoMaxObjetivos.setText(String.valueOf(base.getMaxObjetivos()));
+        campoIntervaloMovimiento.setText(String.valueOf(base.getIntervaloMovimientoMs()));
+        checkAtacaAereo.setSelected(base.isAtacaAereo());
+
+        campoImagenNormal.setText(imagenes.getNormal());
+        campoImagenMovimiento.setText(imagenes.getMovimiento());
+        campoImagenAtaque.setText(imagenes.getAtaque());
+
+        campoImagenNormal.setToolTipText(imagenes.getNormal());
+        campoImagenMovimiento.setToolTipText(imagenes.getMovimiento());
+        campoImagenAtaque.setToolTipText(imagenes.getAtaque());
+
+        campoImagenNormal.setCaretPosition(0);
+        campoImagenMovimiento.setCaretPosition(0);
+        campoImagenAtaque.setCaretPosition(0);
+
+        idSeleccionado = configuracion.getId();
+    }
+    
+    private void cargarConfiguracionSeleccionada() {
+        int filaVista = tablaCatalogo.getSelectedRow();
+
+        if (filaVista < 0) {
+            return;
+        }
+
+        int filaModelo = tablaCatalogo.convertRowIndexToModel(filaVista);
+        String id = String.valueOf(modeloTabla.getValueAt(filaModelo, 0));
+
+        try {
+            ConfiguracionComponente configuracion = controlador.consultar(id);
+
+            if (configuracion != null) {
+                cargarConfiguracionEnFormulario(configuracion);
+            }
+        } catch (RuntimeException e) {
+            mostrarError(e.getMessage());
+        }
+    }
+
+    
 }
