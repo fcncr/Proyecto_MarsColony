@@ -64,7 +64,6 @@ public class GeneradorMision {
 
         List<ConfiguracionComponente> disponibles = catalogo.disponibles(numeroMision);
         CatalogoComponentes catalogoCriaturas = crearCatalogoCriaturas(disponibles);
-
         List<Posicion> exterioresLibres = obtenerPosicionesExterioresLibres(tablero);
 
         if (exterioresLibres.isEmpty()) {
@@ -72,7 +71,6 @@ public class GeneradorMision {
         }
 
         int capacidadEnemiga = escuadron.getCapacidadTotal();
-
         List<Criatura> criaturas = completarPresupuesto(capacidadEnemiga, exterioresLibres.size(), catalogoCriaturas);
 
         if (criaturas.isEmpty()) {
@@ -81,12 +79,11 @@ public class GeneradorMision {
 
         List<ComponenteCombate> participantes = crearParticipantes(nucleo, escuadron, criaturas);
 
+        prepararParticipantesNuevaMision(participantes);
         progresion.aplicarCrecimiento(participantes, numeroMision, partida.getAzar());
-
         colocarCriaturas(partida, tablero, criaturas, exterioresLibres);
 
         Mision mision = new Mision(numeroMision, capacidadEnemiga, criaturas, participantes, true);
-
         partida.setMision(mision);
 
         return mision;
@@ -187,6 +184,18 @@ public class GeneradorMision {
         progresion.aplicarCrecimiento(mision.getParticipantes(), partida.getMisionActual(), partida.getAzar());
     }
 
+    private void prepararParticipantesNuevaMision(List<ComponenteCombate> participantes) {
+        if (participantes == null) {
+            throw new IllegalArgumentException("La lista de participantes no puede ser nula.");
+        }
+
+        for (ComponenteCombate participante : participantes) {
+            if (participante != null) {
+                participante.prepararNuevaMision();
+            }
+        }
+    }
+
     private CatalogoComponentes crearCatalogoCriaturas(List<ConfiguracionComponente> configuraciones) {
         CatalogoComponentes resultado = new CatalogoComponentes();
 
@@ -209,7 +218,6 @@ public class GeneradorMision {
 
     private List<ConfiguracionComponente> reconstruirConfiguraciones(int cantidad, int capacidad, int[][] presupuestoAnterior, ConfiguracionComponente[][] configuracionUsada) {
         List<ConfiguracionComponente> resultado = new ArrayList<>();
-
         int cantidadActual = cantidad;
         int presupuestoActual = capacidad;
 
@@ -221,13 +229,11 @@ public class GeneradorMision {
             }
 
             resultado.add(configuracion);
-
             presupuestoActual = presupuestoAnterior[cantidadActual][presupuestoActual];
             cantidadActual--;
         }
 
         Collections.reverse(resultado);
-
         return resultado;
     }
 
@@ -262,6 +268,7 @@ public class GeneradorMision {
                     throw new IllegalStateException("No fue posible colocar la criatura " + criatura.getNombre() + " en " + posicion + ".");
                 }
 
+                criatura.fijarPosicionInicial(posicion);
                 colocadas.add(posicion);
             }
         } catch (RuntimeException e) {
@@ -279,7 +286,6 @@ public class GeneradorMision {
 
     private List<ComponenteCombate> crearParticipantes(NucleoOxigeno nucleo, Escuadron escuadron, List<Criatura> criaturas) {
         List<ComponenteCombate> participantes = new ArrayList<>();
-
         participantes.add(nucleo);
 
         Set<String> seleccionadas = escuadron.getSeleccionadas();
@@ -291,7 +297,6 @@ public class GeneradorMision {
         }
 
         participantes.addAll(criaturas);
-
         return participantes;
     }
 

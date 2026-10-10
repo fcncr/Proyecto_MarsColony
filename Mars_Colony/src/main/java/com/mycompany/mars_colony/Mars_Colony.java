@@ -3,6 +3,7 @@ package com.mycompany.mars_colony;
 import com.mycompany.mars_colony.configuracion.CatalogoComponentes;
 import com.mycompany.mars_colony.controlador.juego.ControladorJuego;
 import com.mycompany.mars_colony.generacion.GeneradorMision;
+import com.mycompany.mars_colony.generacion.GeneradorObstaculos;
 import com.mycompany.mars_colony.interfaz.juego.VentanaJuego;
 import com.mycompany.mars_colony.modelo.estado.ImagenesEstado;
 import com.mycompany.mars_colony.modelo.mapa.NucleoOxigeno;
@@ -12,6 +13,7 @@ import com.mycompany.mars_colony.modelo.partida.Mision;
 import com.mycompany.mars_colony.modelo.partida.Partida;
 import com.mycompany.mars_colony.persistencia.RepositorioCatalogo;
 import com.mycompany.mars_colony.persistencia.RepositorioPartidas;
+import com.mycompany.mars_colony.util.RutasAplicacion;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
@@ -20,31 +22,28 @@ import javax.swing.SwingUtilities;
 
 public final class Mars_Colony {
 
-    private static final Path ARCHIVO_CATALOGO = Path.of("datos", "catalogo.dat");
-    private static final Path DIRECTORIO_PARTIDAS = Path.of("partidas");
-
     private Mars_Colony() {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> iniciarJuego());
+        SwingUtilities.invokeLater(Mars_Colony::iniciarJuego);
     }
 
     private static void iniciarJuego() {
         try {
-            RepositorioCatalogo repositorioCatalogo = new RepositorioCatalogo(ARCHIVO_CATALOGO);
-            RepositorioPartidas repositorioPartidas = new RepositorioPartidas(DIRECTORIO_PARTIDAS);
+            Path archivoCatalogo = RutasAplicacion.resolver("datos/catalogo.dat");
+            Path directorioPartidas = RutasAplicacion.resolver("partidas");
+            RepositorioCatalogo repositorioCatalogo = new RepositorioCatalogo(archivoCatalogo);
+            RepositorioPartidas repositorioPartidas = new RepositorioPartidas(directorioPartidas);
             GeneradorMision generadorMision = new GeneradorMision();
-
+            GeneradorObstaculos generadorObstaculos = new GeneradorObstaculos();
             Partida partidaInicial = crearPartidaInicial();
-
-            ControladorJuego.CreadorPartida creadorPartida = nombreComandante -> crearNuevaPartida(nombreComandante, repositorioCatalogo, generadorMision);
+            ControladorJuego.CreadorPartida creadorPartida = nombreComandante -> crearNuevaPartida(nombreComandante, repositorioCatalogo, generadorMision, generadorObstaculos);
             ControladorJuego controlador = new ControladorJuego(partidaInicial, repositorioPartidas, creadorPartida);
 
             controlador.configurarGeneradorMision(generadorMision);
 
             VentanaJuego ventana = new VentanaJuego(controlador);
-
             ventana.setLocationRelativeTo(null);
             ventana.setVisible(true);
         } catch (Exception e) {
@@ -62,7 +61,7 @@ public final class Mars_Colony {
         return new Partida("Sin partida", escuadron, tablero, mision, catalogoVacio);
     }
 
-    private static Partida crearNuevaPartida(String nombreComandante, RepositorioCatalogo repositorioCatalogo, GeneradorMision generadorMision) {
+    private static Partida crearNuevaPartida(String nombreComandante, RepositorioCatalogo repositorioCatalogo, GeneradorMision generadorMision, GeneradorObstaculos generadorObstaculos) {
         CatalogoComponentes catalogo = repositorioCatalogo.cargar();
 
         if (catalogo.listar().isEmpty()) {
@@ -75,14 +74,14 @@ public final class Mars_Colony {
         Mision misionInicial = new Mision(1, escuadron.getCapacidadTotal(), Collections.emptyList(), List.of(nucleo), false);
         Partida partida = new Partida(nombreComandante, escuadron, tablero, misionInicial, catalogo);
 
+        generadorObstaculos.generar(partida);
         generadorMision.generar(partida);
 
         return partida;
     }
 
     private static NucleoOxigeno crearNucleo() {
-        ImagenesEstado imagenesNucleo = new ImagenesEstado("assets/importados/Nucleo.png", "assets/importados/Nucleo.png", "assets/importados/Nucleo.png");
-
-        return new NucleoOxigeno("NUCLEO", "Núcleo de oxígeno", 100.0, imagenesNucleo, null);
+        ImagenesEstado imagenes = new ImagenesEstado("assets/importados/Nucleo.png", "assets/importados/Nucleo.png", "assets/importados/Nucleo.png");
+        return new NucleoOxigeno("NUCLEO", "Núcleo de oxígeno", 100.0, imagenes, null);
     }
 }

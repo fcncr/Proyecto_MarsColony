@@ -1,6 +1,8 @@
 package com.mycompany.mars_colony.motor;
 
 import com.mycompany.mars_colony.modelo.combate.ComponenteCombate;
+import com.mycompany.mars_colony.modelo.combate.Criatura;
+import com.mycompany.mars_colony.modelo.combate.Defensa;
 import com.mycompany.mars_colony.modelo.mapa.NucleoOxigeno;
 import com.mycompany.mars_colony.modelo.mapa.Posicion;
 import com.mycompany.mars_colony.modelo.partida.EstadoMision;
@@ -9,15 +11,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import com.mycompany.mars_colony.modelo.combate.Criatura;
-import com.mycompany.mars_colony.modelo.combate.Defensa;
-import com.mycompany.mars_colony.modelo.mapa.NucleoOxigeno;
 
 public class MotorBatalla {
 
     private Partida partida;
     private boolean enEjecucion;
-
     private final ReentrantLock lock;
     private final Condition condicion;
 
@@ -77,11 +75,7 @@ public class MotorBatalla {
         lock.lock();
 
         try {
-            if (componente == null || destino == null || !enEjecucion) {
-                return false;
-            }
-
-            if (!componente.puedeMoverseAhora()) {
+            if (componente == null || destino == null || !enEjecucion || !componente.puedeMoverseAhora()) {
                 return false;
             }
 
@@ -91,17 +85,67 @@ public class MotorBatalla {
                 return false;
             }
 
-            boolean movio = partida.getTablero().mover(
-                    origen,
-                    destino
-            );
+            boolean movio = partida.getTablero().mover(origen, destino);
 
             if (movio) {
                 componente.consumirMovimiento();
             }
 
             return movio;
+        } finally {
+            lock.unlock();
+        }
+    }
 
+    public boolean moverHaciaObjetivoTerrestre(ComponenteCombate componente, ComponenteCombate objetivo) {
+        lock.lock();
+
+        try {
+            if (componente == null || objetivo == null || !enEjecucion || componente.getPosicion() == null || objetivo.getPosicion() == null) {
+                return false;
+            }
+
+            List<Posicion> ruta = NavegadorBatalla.calcularRutaTerrestre(partida.getTablero(), componente, objetivo);
+
+            if (ruta.size() < 2) {
+                return false;
+            }
+
+            return mover(componente, ruta.get(1));
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public boolean moverAereoHaciaObjetivo(ComponenteCombate componente, ComponenteCombate objetivo) {
+        lock.lock();
+
+        try {
+            if (componente == null || objetivo == null || !componente.esAereo() || !enEjecucion) {
+                return false;
+            }
+
+            Posicion siguiente = NavegadorBatalla.buscarSiguientePasoAereo(partida.getTablero(), componente, objetivo);
+
+            if (siguiente == null) {
+                return false;
+            }
+
+            return moverAereo(componente, siguiente);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public ComponenteCombate buscarObjetivoTerrestreAlcanzable(ComponenteCombate atacante) {
+        lock.lock();
+
+        try {
+            if (atacante == null || !atacante.estaOperativo() || atacante.getPosicion() == null) {
+                return null;
+            }
+
+            return NavegadorBatalla.buscarObjetivoTerrestreAlcanzable(partida.getTablero(), atacante, buscarObjetivos(atacante));
         } finally {
             lock.unlock();
         }
@@ -111,15 +155,7 @@ public class MotorBatalla {
         lock.lock();
 
         try {
-            if (!enEjecucion || atacante == null || objetivo == null) {
-                return 0;
-            }
-
-            if (!atacante.estaOperativo() || !objetivo.estaOperativo()) {
-                return 0;
-            }
-
-            if (!atacante.puedeAtacar(objetivo)) {
+            if (!enEjecucion || atacante == null || objetivo == null || !atacante.estaOperativo() || !objetivo.estaOperativo() || !atacante.puedeAtacar(objetivo)) {
                 return 0;
             }
 
@@ -138,7 +174,6 @@ public class MotorBatalla {
             }
 
             evaluarFin();
-
             return danioEfectivo;
         } finally {
             lock.unlock();
@@ -156,12 +191,7 @@ public class MotorBatalla {
             }
 
             for (ComponenteCombate candidato : partida.getMision().getParticipantes()) {
-
-                if (candidato == null || candidato == atacante || !candidato.estaOperativo()) {
-                    continue;
-                }
-
-                if (candidato.getBando() == atacante.getBando()) {
+                if (candidato == null || candidato == atacante || !candidato.estaOperativo() || candidato.getBando() == atacante.getBando()) {
                     continue;
                 }
 
@@ -169,22 +199,14 @@ public class MotorBatalla {
                     continue;
                 }
 
-                if (atacante instanceof Defensa) {
-
-                    if (candidato instanceof Criatura) {
-                        objetivos.add(candidato);
-                    }
-
-                } else if (atacante instanceof Criatura) {
-
-                    if (candidato instanceof Defensa || candidato instanceof NucleoOxigeno) {
-                        objetivos.add(candidato);
-                    }
+                if (atacante instanceof Defensa && candidato instanceof Criatura) {
+                    objetivos.add(candidato);
+                } else if (atacante instanceof Criatura && (candidato instanceof Defensa || candidato instanceof NucleoOxigeno)) {
+                    objetivos.add(candidato);
                 }
             }
 
             return objetivos;
-
         } finally {
             lock.unlock();
         }
@@ -199,10 +221,7 @@ public class MotorBatalla {
             }
 
             if (partida.getMision().todasCriaturasEliminadas()) {
-
-                partida.getMision().setEstado(
-                        EstadoMision.VICTORIA
-                );
+                partida.getMision().setEstado(EstadoMision.VICTORIA);
                 partida.getMision().cerrarRegistros();
                 enEjecucion = false;
                 condicion.signalAll();
@@ -221,9 +240,8 @@ public class MotorBatalla {
         } finally {
             lock.unlock();
         }
-       
     }
-    
+
     public void destruirComponente(ComponenteCombate componente) {
         lock.lock();
 
@@ -233,7 +251,6 @@ public class MotorBatalla {
             }
 
             Posicion posicion = componente.getPosicion();
-
             componente.recibirDanio(componente.getVidaActual());
 
             if (posicion != null) {
@@ -241,33 +258,16 @@ public class MotorBatalla {
             }
 
             evaluarFin();
-
         } finally {
             lock.unlock();
         }
     }
-    
+
     public boolean moverAereo(ComponenteCombate componente, Posicion destino) {
         lock.lock();
 
         try {
-            if (componente == null || destino == null || !enEjecucion) {
-                return false;
-            }
-
-            if (!componente.esAereo()) {
-                return false;
-            }
-
-            if (!componente.puedeMoverseAhora()) {
-                return false;
-            }
-
-            if (!partida.getTablero().estaDentro(destino)) {
-                return false;
-            }
-
-            if (!partida.getTablero().estaLibre(destino)) {
+            if (componente == null || destino == null || !enEjecucion || !componente.esAereo() || !componente.puedeMoverseAhora() || !partida.getTablero().estaDentro(destino) || !partida.getTablero().estaLibre(destino)) {
                 return false;
             }
 
@@ -279,25 +279,13 @@ public class MotorBatalla {
 
             partida.getTablero().retirar(origen);
 
-            boolean colocado = partida.getTablero().colocar(
-                    componente,
-                    destino
-            );
-
-            if (!colocado) {
-
-                partida.getTablero().colocar(
-                        componente,
-                        origen
-                );
-
+            if (!partida.getTablero().colocar(componente, destino)) {
+                partida.getTablero().colocar(componente, origen);
                 return false;
             }
 
             componente.consumirMovimiento();
-
             return true;
-
         } finally {
             lock.unlock();
         }

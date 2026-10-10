@@ -1,12 +1,12 @@
 package com.mycompany.mars_colony.modelo.partida;
 
-import com.mycompany.mars_colony.modelo.mapa.Tablero;
 import com.mycompany.mars_colony.configuracion.CatalogoComponentes;
+import com.mycompany.mars_colony.modelo.mapa.Tablero;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
-import java.io.Serializable;
 
 public class Partida implements Serializable {
 
@@ -14,32 +14,33 @@ public class Partida implements Serializable {
 
     private String versionFormato;
     private String nombreComandante;
-
-    private int misionActual = 1;
-    private int totalMisiones = 10;
-
+    private int misionActual;
+    private int totalMisiones;
     private Set<Integer> misionesSuperadas;
     private boolean campaniaFinalizada;
-
     private Escuadron escuadron;
     private Tablero tablero;
     private Mision mision;
-    
     private CatalogoComponentes catalogoSnapshot;
     private boolean catalogoSnapshotInicializado;
-
     private Random azar;
-    
-    
 
     public Partida(String nombreComandante, Escuadron escuadron, Tablero tablero, Mision mision) {
         this(nombreComandante, escuadron, tablero, mision, null);
     }
 
     public Partida(String nombreComandante, Escuadron escuadron, Tablero tablero, Mision mision, CatalogoComponentes catalogoSnapshot) {
+        if (nombreComandante == null || nombreComandante.isBlank()) {
+            throw new IllegalArgumentException("El nombre del comandante es obligatorio.");
+        }
+
+        if (escuadron == null || tablero == null || mision == null) {
+            throw new IllegalArgumentException("La partida requiere escuadrón, tablero y misión.");
+        }
+
         this.versionFormato = "1.0";
-        this.nombreComandante = nombreComandante;
-        this.misionActual = 1;
+        this.nombreComandante = nombreComandante.trim();
+        this.misionActual = mision.getNumero();
         this.totalMisiones = 10;
         this.misionesSuperadas = new HashSet<>();
         this.campaniaFinalizada = false;
@@ -58,20 +59,15 @@ public class Partida implements Serializable {
         this.azar = new Random();
     }
 
-   
     public boolean registrarMisionSuperada(int numero) {
-
         if (numero < 1) {
-            throw new IllegalArgumentException(
-                    "El numero de mision debe ser mayor o igual a 1."
-            );
+            throw new IllegalArgumentException("El número de misión debe ser mayor o igual a 1.");
         }
 
         return misionesSuperadas.add(numero);
     }
 
     public boolean fueMisionSuperada(int numero) {
-
         if (numero < 1) {
             return false;
         }
@@ -80,9 +76,7 @@ public class Partida implements Serializable {
     }
 
     public boolean puedeFinalizarCampania() {
-
         for (int numero = 1; numero <= totalMisiones; numero++) {
-
             if (!misionesSuperadas.contains(numero)) {
                 return false;
             }
@@ -92,10 +86,7 @@ public class Partida implements Serializable {
     }
 
     public boolean validarEstado() {
-
-        if (nombreComandante == null
-                || nombreComandante.isBlank()) {
-
+        if (nombreComandante == null || nombreComandante.isBlank()) {
             return false;
         }
 
@@ -103,12 +94,15 @@ public class Partida implements Serializable {
             return false;
         }
 
-        if (misionesSuperadas == null) {
+        if (misionesSuperadas == null || escuadron == null || tablero == null || mision == null || azar == null) {
+            return false;
+        }
+
+        if (mision.getEstado() == null || mision.getNumero() != misionActual) {
             return false;
         }
 
         for (Integer numero : misionesSuperadas) {
-
             if (numero == null || numero < 1) {
                 return false;
             }
@@ -118,17 +112,27 @@ public class Partida implements Serializable {
             return false;
         }
 
-        if (escuadron == null
-                || tablero == null
-                || mision == null) {
-
+        if (campaniaFinalizada && mision.getEstado() != EstadoMision.VICTORIA) {
             return false;
         }
-        
+
         if (catalogoSnapshotInicializado && catalogoSnapshot == null) {
             return false;
         }
+
         return true;
+    }
+
+    public boolean puedePersistirse() {
+        if (!validarEstado()) {
+            return false;
+        }
+
+        EstadoMision estado = mision.getEstado();
+
+        return estado == EstadoMision.PREPARACION
+                || estado == EstadoMision.VICTORIA
+                || estado == EstadoMision.DERROTA;
     }
 
     public String getVersionFormato() {
@@ -148,9 +152,7 @@ public class Partida implements Serializable {
     }
 
     public Set<Integer> getMisionesSuperadas() {
-        return Collections.unmodifiableSet(
-                misionesSuperadas
-        );
+        return Collections.unmodifiableSet(new HashSet<>(misionesSuperadas));
     }
 
     public int getCantidadMisionesSuperadas() {
@@ -172,7 +174,7 @@ public class Partida implements Serializable {
     public Random getAzar() {
         return azar;
     }
-    
+
     public boolean tieneCatalogoSnapshot() {
         return catalogoSnapshotInicializado && catalogoSnapshot != null;
     }
@@ -194,38 +196,31 @@ public class Partida implements Serializable {
             throw new IllegalStateException("La partida ya tiene un catálogo snapshot.");
         }
 
-        this.catalogoSnapshot = catalogo.copiar();
-        this.catalogoSnapshotInicializado = true;
+        catalogoSnapshot = catalogo.copiar();
+        catalogoSnapshotInicializado = true;
     }
 
     public void setMisionActual(int misionActual) {
-
         if (misionActual < 1) {
-            throw new IllegalArgumentException(
-                    "La mision actual debe ser mayor o igual a 1."
-            );
+            throw new IllegalArgumentException("La misión actual debe ser mayor o igual a 1.");
         }
 
         this.misionActual = misionActual;
     }
 
     public void setMision(Mision mision) {
-
         if (mision == null) {
-            throw new IllegalArgumentException(
-                    "La mision no puede ser null."
-            );
+            throw new IllegalArgumentException("La misión no puede ser null.");
         }
 
         this.mision = mision;
     }
-    
+
     public boolean isCampaniaFinalizada() {
-    return campaniaFinalizada;
+        return campaniaFinalizada;
     }
 
     public boolean finalizarCampania() {
-
         if (!puedeFinalizarCampania()) {
             return false;
         }

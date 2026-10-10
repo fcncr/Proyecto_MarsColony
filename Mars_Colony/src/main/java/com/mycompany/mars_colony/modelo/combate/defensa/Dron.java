@@ -20,31 +20,14 @@ public class Dron extends DefensaActiva implements Movible {
     public List<ComponenteCombate> seleccionarObjetivos(MotorBatalla motor) {
         List<ComponenteCombate> seleccionados = new ArrayList<>();
 
-        if (motor == null || !estaOperativa() || getPosicion() == null) {
+        if (motor == null || !estaOperativa()) {
             return seleccionados;
         }
 
-        List<ComponenteCombate> candidatos = motor.buscarObjetivos(this);
+        ComponenteCombate objetivo = motor.buscarObjetivoTerrestreAlcanzable(this);
 
-        ComponenteCombate masCercano = null;
-        double menorDistancia = Double.MAX_VALUE;
-
-        for (ComponenteCombate candidato : candidatos) {
-
-            if (candidato == null || candidato.getPosicion() == null) {
-                continue;
-            }
-
-            double distancia = getPosicion().distanciaA(candidato.getPosicion());
-
-            if (distancia < menorDistancia) {
-                menorDistancia = distancia;
-                masCercano = candidato;
-            }
-        }
-
-        if (masCercano != null) {
-            seleccionados.add(masCercano);
+        if (objetivo != null) {
+            seleccionados.add(objetivo);
         }
 
         return seleccionados;
@@ -52,99 +35,23 @@ public class Dron extends DefensaActiva implements Movible {
 
     @Override
     public boolean mover(MotorBatalla motor) {
-        if (motor == null || !estaOperativa() || getPosicion() == null) {
+        if (motor == null || !estaOperativa()) {
             return false;
         }
 
-        List<ComponenteCombate> objetivos = seleccionarObjetivos(motor);
-
-        if (objetivos.isEmpty()) {
-            return false;
-        }
-
-        ComponenteCombate objetivo = objetivos.get(0);
-
-        if (objetivo.getPosicion() == null) {
-            return false;
-        }
-
-        Posicion actual = getPosicion();
-        Posicion destinoObjetivo = objetivo.getPosicion();
-
-        double distancia = actual.distanciaA(destinoObjetivo);
-
-        if (distancia <= getAlcance()) {
-            return false;
-        }
-
-        int cambioFila = Integer.compare(
-                destinoObjetivo.getFila(),
-                actual.getFila()
-        );
-
-        int cambioColumna = Integer.compare(
-                destinoObjetivo.getColumna(),
-                actual.getColumna()
-        );
-
-        Posicion siguiente = new Posicion(
-                actual.getFila() + cambioFila,
-                actual.getColumna() + cambioColumna
-        );
-
-        if (motor.mover(this, siguiente)) {
-            return true;
-        }
-
-        if (cambioFila != 0) {
-
-            Posicion alternativaFila = new Posicion(
-                    actual.getFila() + cambioFila,
-                    actual.getColumna()
-            );
-
-            if (motor.mover(this, alternativaFila)) {
-                return true;
-            }
-        }
-
-        if (cambioColumna != 0) {
-
-            Posicion alternativaColumna = new Posicion(
-                    actual.getFila(),
-                    actual.getColumna() + cambioColumna
-            );
-
-            if (motor.mover(this, alternativaColumna)) {
-                return true;
-            }
-        }
-
-        return false;
+        ComponenteCombate objetivo = motor.buscarObjetivoTerrestreAlcanzable(this);
+        return objetivo != null && motor.moverHaciaObjetivoTerrestre(this, objetivo);
     }
 
     @Override
     public void atacar(MotorBatalla motor, List<ComponenteCombate> objetivos) {
-        if (motor == null || objetivos == null || objetivos.isEmpty() || !estaOperativa()) {
-            return;
-        }
-
-        if (!puedeEjecutarAtaque()) {
+        if (motor == null || objetivos == null || objetivos.isEmpty() || !estaOperativa() || !puedeEjecutarAtaque()) {
             return;
         }
 
         ComponenteCombate objetivo = objetivos.get(0);
 
-        if (getPosicion() == null || objetivo.getPosicion() == null) {
-            return;
-        }
-
-        double distancia = getPosicion().distanciaA(
-                objetivo.getPosicion()
-        );
-
-        if (distancia <= getAlcance()) {
-
+        if (getPosicion() != null && objetivo.getPosicion() != null && getPosicion().distanciaA(objetivo.getPosicion()) <= getAlcance()) {
             double danioEfectivo = motor.aplicarAtaque(this, objetivo);
 
             if (danioEfectivo > 0) {
@@ -167,16 +74,10 @@ public class Dron extends DefensaActiva implements Movible {
 
         ComponenteCombate objetivo = objetivos.get(0);
 
-        if (objetivo.getPosicion() == null || getPosicion() == null) {
-            return;
-        }
-
-        double distancia = getPosicion().distanciaA(objetivo.getPosicion());
-
-        if (distancia <= getAlcance()) {
+        if (getPosicion() != null && objetivo.getPosicion() != null && getPosicion().distanciaA(objetivo.getPosicion()) <= getAlcance()) {
             atacar(motor, objetivos);
         } else {
-            mover(motor);
+            motor.moverHaciaObjetivoTerrestre(this, objetivo);
         }
     }
 }

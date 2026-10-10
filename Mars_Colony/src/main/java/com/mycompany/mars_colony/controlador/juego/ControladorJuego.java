@@ -19,9 +19,11 @@ import com.mycompany.mars_colony.motor.HiloUnidad;
 import com.mycompany.mars_colony.motor.MotorBatalla;
 import com.mycompany.mars_colony.persistencia.RepositorioPartidas;
 import com.mycompany.mars_colony.servicio.ServicioCampania;
+import com.mycompany.mars_colony.servicio.ServicioProgresion;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -30,14 +32,12 @@ public class ControladorJuego {
     private static final Set<TipoComponente> TIPOS_DEFENSA = EnumSet.of(TipoComponente.DEFENSA_CONTACTO, TipoComponente.DEFENSA_ALCANCE, TipoComponente.DRON, TipoComponente.DEFENSA_IMPACTO, TipoComponente.DEFENSA_MULTIPLE, TipoComponente.BARRERA);
 
     private Partida partida;
-
     private final FabricaComponentes fabrica;
     private final RepositorioPartidas repositorioPartidas;
     private final CreadorPartida creadorPartida;
     private final ServicioCampania servicioCampania;
-
+    private final ServicioProgresion servicioProgresion;
     private GeneradorMision generadorMision;
-
     private MotorBatalla motorBatalla;
     private final List<HiloUnidad> hilosBatalla;
 
@@ -73,6 +73,7 @@ public class ControladorJuego {
         this.repositorioPartidas = repositorioPartidas;
         this.creadorPartida = creadorPartida;
         this.servicioCampania = new ServicioCampania();
+        this.servicioProgresion = new ServicioProgresion();
         this.generadorMision = null;
         this.motorBatalla = null;
         this.hilosBatalla = new ArrayList<>();
@@ -131,6 +132,8 @@ public class ControladorJuego {
             throw new IllegalArgumentException("Debe seleccionar una partida.");
         }
 
+        limpiarBatallaFinalizada();
+
         try {
             Partida cargada = repositorioPartidas.cargar(nombreComandante);
 
@@ -158,6 +161,8 @@ public class ControladorJuego {
             throw new IllegalStateException("No se configuró la creación de nuevas partidas.");
         }
 
+        limpiarBatallaFinalizada();
+
         String nombre = normalizarNombre(nombreComandante);
 
         try {
@@ -173,7 +178,6 @@ public class ControladorJuego {
 
             repositorioPartidas.guardar(nueva);
             this.partida = nueva;
-
             return nueva;
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw e;
@@ -205,41 +209,35 @@ public class ControladorJuego {
         return Collections.unmodifiableList(defensas);
     }
 
+    public List<Defensa> listarDefensasNoColocadas() {
+        Escuadron escuadron = partida.getEscuadron();
+        Tablero tablero = partida.getTablero();
+
+        if (escuadron == null || tablero == null) {
+            return Collections.emptyList();
+        }
+
+        List<Defensa> defensas = new ArrayList<>();
+
+        for (Defensa defensa : escuadron.getDefensas()) {
+            if (defensa != null && !escuadron.getSeleccionadas().contains(defensa.getId()) && buscarPosicionEnTablero(tablero, defensa) == null) {
+                defensas.add(defensa);
+            }
+        }
+
+        return Collections.unmodifiableList(defensas);
+    }
+
     public Defensa colocarDefensa(String idConfiguracion, Posicion posicion) {
         if (idConfiguracion == null || idConfiguracion.isBlank()) {
             throw new IllegalArgumentException("Debe seleccionar una configuración de defensa.");
         }
 
-        if (posicion == null) {
-            throw new IllegalArgumentException("Debe indicar una posición.");
-        }
-
-        Mision mision = partida.getMision();
-
-        if (mision == null || mision.getEstado() != EstadoMision.PREPARACION) {
-            throw new IllegalStateException("Las defensas solo pueden colocarse durante la preparación de la misión.");
-        }
-
-        Tablero tablero = partida.getTablero();
-
-        if (tablero == null) {
-            throw new IllegalStateException("La partida no tiene un tablero.");
-        }
-
-        if (!tablero.estaDentro(posicion)) {
-            throw new IllegalArgumentException("La posición seleccionada está fuera del tablero.");
-        }
-
-        if (!tablero.estaLibre(posicion)) {
-            throw new IllegalStateException("La casilla seleccionada ya está ocupada.");
-        }
+        validarColocacionDefensa(posicion);
 
         Escuadron escuadron = partida.getEscuadron();
-
-        if (escuadron == null) {
-            throw new IllegalStateException("La partida no tiene un escuadrón.");
-        }
-
+        Tablero tablero = partida.getTablero();
+        Mision mision = partida.getMision();
         ConfiguracionComponente configuracion = buscarDefensaDisponible(idConfiguracion);
 
         if (configuracion == null) {
@@ -258,6 +256,8 @@ public class ControladorJuego {
             throw new IllegalStateException("La configuración seleccionada no produjo una defensa.");
         }
 
+        aplicarProgresionDefensa(defensa);
+
         if (!tablero.colocar(defensa, posicion)) {
             throw new IllegalStateException("El tablero rechazó la colocación de la defensa.");
         }
@@ -274,11 +274,105 @@ public class ControladorJuego {
             throw new IllegalStateException("No fue posible seleccionar la defensa dentro de la capacidad del escuadrón.");
         }
 
-        Mision misionActual = partida.getMision();
+        defensa.fijarPosicionInicial(posicion);
+        mision.agregarParticipante(defensa);
 
-        if (misionActual != null) {
-            misionActual.agregarParticipante(defensa);
+        return defensa;
+    }
+
+    public Defensa colocarDefensaExistente(String idDefensa, Posicion posicion) {
+        if (idDefensa == null || idDefensa.isBlank()) {
+            throw new IllegalArgumentException("Debe indicar la defensa que desea colocar.");
         }
+
+        validarColocacionDefensa(posicion);
+
+        Escuadron escuadron = partida.getEscuadron();
+        Tablero tablero = partida.getTablero();
+        Mision mision = partida.getMision();
+        Defensa defensa = buscarDefensaEscuadron(escuadron, idDefensa);
+
+        if (defensa == null) {
+            throw new IllegalStateException("La defensa indicada no pertenece al escuadrón.");
+        }
+
+        if (escuadron.getSeleccionadas().contains(defensa.getId())) {
+            throw new IllegalStateException("La defensa indicada ya está seleccionada para la misión.");
+        }
+
+        if (buscarPosicionEnTablero(tablero, defensa) != null) {
+            throw new IllegalStateException("La defensa indicada ya está colocada en el tablero.");
+        }
+
+        if (defensa.getCostoCapacidad() > escuadron.capacidadRestante()) {
+            throw new IllegalStateException("Capacidad insuficiente. Costo: " + defensa.getCostoCapacidad() + ", restante: " + escuadron.capacidadRestante() + ".");
+        }
+
+        aplicarProgresionDefensa(defensa);
+        defensa.setPosicion(null);
+
+        if (!tablero.colocar(defensa, posicion)) {
+            throw new IllegalStateException("El tablero rechazó la colocación de la defensa.");
+        }
+
+        if (!escuadron.seleccionar(defensa.getId())) {
+            tablero.retirar(posicion);
+            defensa.setPosicion(null);
+            throw new IllegalStateException("No fue posible seleccionar la defensa dentro de la capacidad del escuadrón.");
+        }
+
+        defensa.fijarPosicionInicial(posicion);
+        mision.agregarParticipante(defensa);
+
+        return defensa;
+    }
+
+    public Defensa retirarDefensa(String idDefensa) {
+        if (idDefensa == null || idDefensa.isBlank()) {
+            throw new IllegalArgumentException("Debe indicar la defensa que desea retirar.");
+        }
+
+        Mision mision = partida.getMision();
+
+        if (mision == null || mision.getEstado() != EstadoMision.PREPARACION) {
+            throw new IllegalStateException("Las defensas solo pueden retirarse durante la preparación de la misión.");
+        }
+
+        Tablero tablero = partida.getTablero();
+        Escuadron escuadron = partida.getEscuadron();
+
+        if (tablero == null || escuadron == null) {
+            throw new IllegalStateException("La partida no contiene un tablero o escuadrón válido.");
+        }
+
+        Defensa defensa = buscarDefensaEscuadron(escuadron, idDefensa);
+
+        if (defensa == null) {
+            throw new IllegalStateException("La defensa indicada no pertenece al escuadrón.");
+        }
+
+        if (!escuadron.getSeleccionadas().contains(defensa.getId())) {
+            throw new IllegalStateException("La defensa indicada no está seleccionada para la misión.");
+        }
+
+        Posicion posicion = buscarPosicionEnTablero(tablero, defensa);
+
+        if (posicion == null) {
+            throw new IllegalStateException("La defensa indicada no está colocada en el tablero.");
+        }
+
+        if (tablero.retirar(posicion) != defensa) {
+            throw new IllegalStateException("No fue posible retirar la defensa del tablero.");
+        }
+
+        if (!escuadron.deseleccionar(defensa.getId())) {
+            tablero.colocar(defensa, posicion);
+            throw new IllegalStateException("No fue posible liberar la capacidad ocupada por la defensa.");
+        }
+
+        mision.eliminarParticipante(defensa);
+        defensa.setPosicion(null);
+        sincronizarDefensasSeleccionadas();
 
         return defensa;
     }
@@ -288,8 +382,9 @@ public class ControladorJuego {
             throw new IllegalStateException("Ya existe una batalla en ejecución.");
         }
 
+        limpiarBatallaFinalizada();
+
         Mision mision = partida.getMision();
-        
         sincronizarDefensasSeleccionadas();
         validarMisionParaBatalla(mision);
 
@@ -306,10 +401,9 @@ public class ControladorJuego {
             throw new IllegalStateException("La misión no contiene unidades activas para ejecutar la batalla.");
         }
 
-        this.motorBatalla = nuevoMotor;
-        this.hilosBatalla.clear();
-        this.hilosBatalla.addAll(nuevosHilos);
-
+        motorBatalla = nuevoMotor;
+        hilosBatalla.clear();
+        hilosBatalla.addAll(nuevosHilos);
         motorBatalla.iniciar();
 
         for (HiloUnidad hilo : hilosBatalla) {
@@ -317,51 +411,27 @@ public class ControladorJuego {
         }
     }
 
-    private void validarMisionParaBatalla(Mision mision) {
-        if (mision == null) {
-            throw new IllegalStateException("No existe una misión preparada.");
-        }
-
-        if (!mision.isGenerada()) {
-            throw new IllegalStateException("La misión todavía no ha sido generada.");
-        }
-
-        if (mision.getEstado() != EstadoMision.PREPARACION) {
-            throw new IllegalStateException("La misión no se encuentra en estado de preparación.");
-        }
-
-        if (mision.getCriaturas().isEmpty()) {
-            throw new IllegalStateException("La misión no contiene criaturas.");
-        }
-
-        Tablero tablero = partida.getTablero();
-
-        if (tablero == null) {
-            throw new IllegalStateException("La partida no tiene tablero.");
-        }
-
-        NucleoOxigeno nucleo = null;
-
-        for (ComponenteCombate participante : mision.getParticipantes()) {
-            if (participante instanceof NucleoOxigeno encontrado) {
-                nucleo = encontrado;
-                break;
-            }
-        }
-
-        if (nucleo == null || nucleo.getPosicion() == null || tablero.obtener(nucleo.getPosicion()) != nucleo) {
-            throw new IllegalStateException("El núcleo de oxígeno no está correctamente colocado en el tablero.");
-        }
-
-        for (ComponenteCombate criatura : mision.getCriaturas()) {
-            if (criatura == null || criatura.getPosicion() == null || tablero.obtener(criatura.getPosicion()) != criatura) {
-                throw new IllegalStateException("Todas las criaturas deben estar colocadas antes de iniciar la batalla.");
-            }
-        }
-    }
-
     public boolean estaBatallaEnCurso() {
         return motorBatalla != null && motorBatalla.estaEnEjecucion();
+    }
+
+    public void detenerBatallaYEsperar() {
+        MotorBatalla motorActual = motorBatalla;
+
+        if (motorActual != null) {
+            motorActual.detener();
+        }
+
+        for (HiloUnidad hilo : hilosBatalla) {
+            hilo.detener();
+        }
+
+        for (HiloUnidad hilo : hilosBatalla) {
+            hilo.esperarFin();
+        }
+
+        hilosBatalla.clear();
+        motorBatalla = null;
     }
 
     public void limpiarBatallaFinalizada() {
@@ -369,24 +439,13 @@ public class ControladorJuego {
             return;
         }
 
-        for (HiloUnidad hilo : hilosBatalla) {
-            if (hilo.estaActivo()) {
-                hilo.detener();
-            }
-        }
-
-        hilosBatalla.clear();
-        motorBatalla = null;
+        detenerBatallaYEsperar();
     }
 
     public void procesarResultadoMisionFinalizada() {
         Mision mision = partida.getMision();
 
-        if (mision == null) {
-            return;
-        }
-
-        if (mision.getEstado() == EstadoMision.VICTORIA) {
+        if (mision != null && mision.getEstado() == EstadoMision.VICTORIA) {
             servicioCampania.registrarVictoria(partida);
         }
     }
@@ -411,15 +470,18 @@ public class ControladorJuego {
         Mision mision = partida.getMision();
         Tablero tablero = partida.getTablero();
 
-        retirarParticipantesMoviblesDelTablero(mision, tablero);
+        if (mision == null || tablero == null) {
+            throw new IllegalStateException("No existe una misión o tablero que repetir.");
+        }
 
-        boolean repetida = servicioCampania.repetirActual(partida);
+        retirarParticipantesDelTablero(mision, tablero);
 
-        if (!repetida) {
-            return false;
+        if (!servicioCampania.repetirActual(partida)) {
+            throw new IllegalStateException("No fue posible preparar nuevamente la misión.");
         }
 
         restaurarParticipantesEnTablero(mision, tablero);
+        validarConsistenciaParticipantes(mision, tablero);
 
         return true;
     }
@@ -433,19 +495,28 @@ public class ControladorJuego {
             throw new IllegalStateException("No se configuró el generador de misiones.");
         }
 
+        Mision misionAnterior = partida.getMision();
+        Tablero tablero = partida.getTablero();
+        Escuadron escuadron = partida.getEscuadron();
+
+        if (misionAnterior == null || tablero == null || escuadron == null) {
+            throw new IllegalStateException("La partida no contiene los elementos necesarios para avanzar de misión.");
+        }
+
         int numeroAnterior = partida.getMisionActual();
 
-        boolean avanzo = servicioCampania.avanzar(partida);
-
-        if (!avanzo) {
+        if (!servicioCampania.avanzar(partida)) {
             return false;
         }
 
         try {
+            limpiarParticipantesNoNucleo(misionAnterior, tablero);
+            prepararDefensasParaNuevaMision(escuadron);
             generadorMision.generar(partida);
             return true;
         } catch (RuntimeException e) {
             partida.setMisionActual(numeroAnterior);
+            partida.setMision(misionAnterior);
             throw e;
         }
     }
@@ -454,7 +525,167 @@ public class ControladorJuego {
         return servicioCampania.finalizarCampania(partida);
     }
 
-    private void retirarParticipantesMoviblesDelTablero(Mision mision, Tablero tablero) {
+    private void validarMisionParaBatalla(Mision mision) {
+        if (mision == null) {
+            throw new IllegalStateException("No existe una misión preparada.");
+        }
+
+        if (!mision.isGenerada()) {
+            throw new IllegalStateException("La misión todavía no ha sido generada.");
+        }
+
+        if (mision.getEstado() != EstadoMision.PREPARACION) {
+            throw new IllegalStateException("La misión no se encuentra en estado de preparación.");
+        }
+
+        if (mision.getCriaturas().isEmpty()) {
+            throw new IllegalStateException("La misión no contiene criaturas.");
+        }
+
+        Tablero tablero = partida.getTablero();
+        Escuadron escuadron = partida.getEscuadron();
+
+        if (tablero == null || escuadron == null) {
+            throw new IllegalStateException("La partida no tiene tablero o escuadrón.");
+        }
+
+        NucleoOxigeno nucleo = null;
+
+        for (ComponenteCombate participante : mision.getParticipantes()) {
+            if (participante instanceof NucleoOxigeno encontrado) {
+                nucleo = encontrado;
+                break;
+            }
+        }
+
+        if (nucleo == null || nucleo.getPosicion() == null || tablero.obtener(nucleo.getPosicion()) != nucleo) {
+            throw new IllegalStateException("El núcleo de oxígeno no está correctamente colocado en el tablero.");
+        }
+
+        for (ComponenteCombate criatura : mision.getCriaturas()) {
+            if (criatura == null || criatura.getPosicion() == null || tablero.obtener(criatura.getPosicion()) != criatura) {
+                throw new IllegalStateException("Todas las criaturas deben estar colocadas antes de iniciar la batalla.");
+            }
+        }
+
+        for (Defensa defensa : escuadron.getDefensas()) {
+            if (defensa != null && escuadron.getSeleccionadas().contains(defensa.getId()) && (defensa.getPosicion() == null || tablero.obtener(defensa.getPosicion()) != defensa)) {
+                throw new IllegalStateException("Todas las defensas seleccionadas deben estar colocadas antes de iniciar la batalla.");
+            }
+        }
+    }
+
+    private void aplicarProgresionDefensa(Defensa defensa) {
+        servicioProgresion.aplicarCrecimiento(defensa, partida.getMisionActual(), partida.getAzar());
+    }
+
+    private void validarColocacionDefensa(Posicion posicion) {
+        if (posicion == null) {
+            throw new IllegalArgumentException("Debe indicar una posición.");
+        }
+
+        Mision mision = partida.getMision();
+
+        if (mision == null || mision.getEstado() != EstadoMision.PREPARACION) {
+            throw new IllegalStateException("Las defensas solo pueden colocarse durante la preparación de la misión.");
+        }
+
+        Tablero tablero = partida.getTablero();
+        Escuadron escuadron = partida.getEscuadron();
+
+        if (tablero == null || escuadron == null) {
+            throw new IllegalStateException("La partida no contiene un tablero o escuadrón válido.");
+        }
+
+        if (!tablero.estaDentro(posicion)) {
+            throw new IllegalArgumentException("La posición seleccionada está fuera del tablero.");
+        }
+
+        if (!tablero.estaLibre(posicion)) {
+            throw new IllegalStateException("La casilla seleccionada ya está ocupada.");
+        }
+    }
+
+    private void prepararDefensasParaNuevaMision(Escuadron escuadron) {
+        if (escuadron == null) {
+            throw new IllegalArgumentException("El escuadrón no puede ser nulo.");
+        }
+
+        for (Defensa defensa : escuadron.getDefensas()) {
+            if (defensa != null) {
+                escuadron.deseleccionar(defensa.getId());
+                defensa.prepararNuevaMision();
+                defensa.setPosicion(null);
+            }
+        }
+    }
+
+    private void retirarParticipantesDelTablero(Mision mision, Tablero tablero) {
+        if (mision == null || tablero == null) {
+            throw new IllegalStateException("No existe una misión o tablero que limpiar.");
+        }
+
+        limpiarParticipantesNoNucleo(mision, tablero);
+    }
+
+    private void restaurarParticipantesEnTablero(Mision mision, Tablero tablero) {
+        if (mision == null || tablero == null) {
+            throw new IllegalStateException("No existe un tablero o misión que restaurar.");
+        }
+
+        try {
+            Set<Posicion> posicionesReservadas = new HashSet<>();
+
+            for (ComponenteCombate participante : mision.getParticipantes()) {
+                if (participante == null) {
+                    continue;
+                }
+
+                Posicion inicial = participante.getPosicionInicial();
+
+                if (inicial == null) {
+                    throw new IllegalStateException("El participante " + participante.getNombre() + " no tiene posición inicial.");
+                }
+
+                if (!tablero.estaDentro(inicial)) {
+                    throw new IllegalStateException("La posición inicial de " + participante.getNombre() + " está fuera del tablero.");
+                }
+
+                if (participante instanceof NucleoOxigeno) {
+                    if (tablero.obtener(inicial) != participante) {
+                        throw new IllegalStateException("El núcleo no coincide con su posición inicial en el tablero.");
+                    }
+
+                    continue;
+                }
+
+                if (!posicionesReservadas.add(inicial)) {
+                    throw new IllegalStateException("Existen dos participantes con la misma posición inicial: " + inicial);
+                }
+
+                if (!tablero.estaLibre(inicial)) {
+                    throw new IllegalStateException("La posición inicial " + inicial + " de " + participante.getNombre() + " no está libre.");
+                }
+            }
+
+            for (ComponenteCombate participante : mision.getParticipantes()) {
+                if (participante == null || participante instanceof NucleoOxigeno) {
+                    continue;
+                }
+
+                Posicion inicial = participante.getPosicionInicial();
+
+                if (!tablero.colocar(participante, inicial)) {
+                    throw new IllegalStateException("El tablero rechazó la restauración de " + participante.getNombre() + ".");
+                }
+            }
+        } catch (RuntimeException e) {
+            limpiarParticipantesNoNucleo(mision, tablero);
+            throw e;
+        }
+    }
+
+    private void limpiarParticipantesNoNucleo(Mision mision, Tablero tablero) {
         if (mision == null || tablero == null) {
             return;
         }
@@ -464,38 +695,87 @@ public class ControladorJuego {
                 continue;
             }
 
-            Posicion posicion = participante.getPosicion();
+            for (int fila = 0; fila < tablero.getFilas(); fila++) {
+                for (int columna = 0; columna < tablero.getColumnas(); columna++) {
+                    Posicion posicionTablero = new Posicion(fila, columna);
 
-            if (posicion != null && tablero.obtener(posicion) == participante) {
-                tablero.retirar(posicion);
+                    if (tablero.obtener(posicionTablero) == participante) {
+                        tablero.retirar(posicionTablero);
+                    }
+                }
+            }
+
+            participante.setPosicion(null);
+        }
+    }
+
+    private void validarConsistenciaParticipantes(Mision mision, Tablero tablero) {
+        if (mision == null || tablero == null) {
+            throw new IllegalStateException("No existe misión o tablero para validar.");
+        }
+
+        for (ComponenteCombate participante : mision.getParticipantes()) {
+            if (participante == null) {
+                continue;
+            }
+
+            Posicion posicion = participante.getPosicion();
+            Posicion inicial = participante.getPosicionInicial();
+
+            if (posicion == null) {
+                throw new IllegalStateException("El participante " + participante.getNombre() + " quedó sin posición después de repetir la misión.");
+            }
+
+            if (!tablero.estaDentro(posicion)) {
+                throw new IllegalStateException("El participante " + participante.getNombre() + " quedó fuera del tablero.");
+            }
+
+            if (tablero.obtener(posicion) != participante) {
+                throw new IllegalStateException("Existe una inconsistencia entre el tablero y la posición de " + participante.getNombre() + ".");
+            }
+
+            if (inicial == null || !inicial.equals(posicion)) {
+                throw new IllegalStateException("El participante " + participante.getNombre() + " no regresó a su posición inicial.");
             }
         }
     }
 
-    private void restaurarParticipantesEnTablero(Mision mision, Tablero tablero) {
-        if (mision == null || tablero == null) {
-            throw new IllegalStateException("No existe un tablero o misión que restaurar.");
+    private Defensa buscarDefensaEscuadron(Escuadron escuadron, String idDefensa) {
+        if (escuadron == null || idDefensa == null) {
+            return null;
         }
 
-        for (ComponenteCombate participante : mision.getParticipantes()) {
-            if (participante == null || participante instanceof NucleoOxigeno) {
-                continue;
-            }
-
-            Posicion posicion = participante.getPosicion();
-
-            if (posicion == null) {
-                continue;
-            }
-
-            if (!tablero.estaLibre(posicion)) {
-                throw new IllegalStateException("No fue posible restaurar la posición inicial de " + participante.getNombre() + ".");
-            }
-
-            if (!tablero.colocar(participante, posicion)) {
-                throw new IllegalStateException("El tablero rechazó la restauración de " + participante.getNombre() + ".");
+        for (Defensa defensa : escuadron.getDefensas()) {
+            if (defensa != null && idDefensa.equals(defensa.getId())) {
+                return defensa;
             }
         }
+
+        return null;
+    }
+
+    private Posicion buscarPosicionEnTablero(Tablero tablero, ComponenteCombate componente) {
+        if (tablero == null || componente == null) {
+            return null;
+        }
+
+        Posicion posicionActual = componente.getPosicion();
+
+        if (posicionActual != null && tablero.estaDentro(posicionActual) && tablero.obtener(posicionActual) == componente) {
+            return posicionActual;
+        }
+
+        for (int fila = 0; fila < tablero.getFilas(); fila++) {
+            for (int columna = 0; columna < tablero.getColumnas(); columna++) {
+                Posicion posicion = new Posicion(fila, columna);
+
+                if (tablero.obtener(posicion) == componente) {
+                    return posicion;
+                }
+            }
+        }
+
+        return null;
     }
 
     private ConfiguracionComponente buscarDefensaDisponible(String id) {
@@ -527,7 +807,7 @@ public class ControladorJuego {
 
         return nombre;
     }
-    
+
     private void sincronizarDefensasSeleccionadas() {
         Mision mision = partida.getMision();
         Escuadron escuadron = partida.getEscuadron();
@@ -537,6 +817,13 @@ public class ControladorJuego {
         }
 
         mision.registrarParticipantes();
+        List<ComponenteCombate> participantesActuales = new ArrayList<>(mision.getParticipantes());
+
+        for (ComponenteCombate participante : participantesActuales) {
+            if (participante instanceof Defensa defensa && !escuadron.getSeleccionadas().contains(defensa.getId())) {
+                mision.eliminarParticipante(defensa);
+            }
+        }
 
         for (Defensa defensa : escuadron.getDefensas()) {
             if (defensa != null && escuadron.getSeleccionadas().contains(defensa.getId())) {

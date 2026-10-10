@@ -28,20 +28,15 @@ public class Volador extends Criatura {
             return seleccionados;
         }
 
-        List<ComponenteCombate> candidatos = motor.buscarObjetivos(this);
-
         ComponenteCombate masCercano = null;
         double menorDistancia = Double.MAX_VALUE;
 
-        for (ComponenteCombate candidato : candidatos) {
-
+        for (ComponenteCombate candidato : motor.buscarObjetivos(this)) {
             if (candidato == null || candidato.getPosicion() == null) {
                 continue;
             }
 
-            double distancia = getPosicion().distanciaA(
-                    candidato.getPosicion()
-            );
+            double distancia = getPosicion().distanciaA(candidato.getPosicion());
 
             if (distancia < menorDistancia) {
                 menorDistancia = distancia;
@@ -58,7 +53,7 @@ public class Volador extends Criatura {
 
     @Override
     public boolean mover(MotorBatalla motor) {
-        if (motor == null || !estaOperativa() || getPosicion() == null) {
+        if (motor == null || !estaOperativa()) {
             return false;
         }
 
@@ -68,61 +63,18 @@ public class Volador extends Criatura {
             return false;
         }
 
-        ComponenteCombate objetivo = objetivos.get(0);
-
-        if (objetivo.getPosicion() == null) {
-            return false;
-        }
-
-        Posicion actual = getPosicion();
-        Posicion destino = objetivo.getPosicion();
-
-        double distancia = actual.distanciaA(destino);
-
-        if (distancia <= getAlcance()) {
-            return false;
-        }
-
-        int cambioFila = Integer.compare(
-                destino.getFila(),
-                actual.getFila()
-        );
-
-        int cambioColumna = Integer.compare(
-                destino.getColumna(),
-                actual.getColumna()
-        );
-
-        Posicion siguiente = new Posicion(
-                actual.getFila() + cambioFila,
-                actual.getColumna() + cambioColumna
-        );
-
-        return motor.moverAereo(this, siguiente);
+        return motor.moverAereoHaciaObjetivo(this, objetivos.get(0));
     }
 
     @Override
     public void atacar(MotorBatalla motor, List<ComponenteCombate> objetivos) {
-        if (motor == null || objetivos == null || objetivos.isEmpty() || !estaOperativa()) {
-            return;
-        }
-
-        if (!puedeEjecutarAtaque()) {
+        if (motor == null || objetivos == null || objetivos.isEmpty() || !estaOperativa() || !puedeEjecutarAtaque()) {
             return;
         }
 
         ComponenteCombate objetivo = objetivos.get(0);
 
-        if (getPosicion() == null || objetivo.getPosicion() == null) {
-            return;
-        }
-
-        double distancia = getPosicion().distanciaA(
-                objetivo.getPosicion()
-        );
-
-        if (distancia <= getAlcance()) {
-
+        if (getPosicion() != null && objetivo.getPosicion() != null && getPosicion().distanciaA(objetivo.getPosicion()) <= getAlcance()) {
             double danioEfectivo = motor.aplicarAtaque(this, objetivo);
 
             if (danioEfectivo > 0) {
@@ -130,6 +82,7 @@ public class Volador extends Criatura {
             }
         }
     }
+
     @Override
     public void ejecutarCiclo(MotorBatalla motor, long dtMs) {
         if (motor == null || !motor.estaEnEjecucion() || !estaOperativa()) {
@@ -144,18 +97,10 @@ public class Volador extends Criatura {
 
         ComponenteCombate objetivo = objetivos.get(0);
 
-        if (objetivo.getPosicion() == null || getPosicion() == null) {
-            return;
-        }
-
-        double distancia = getPosicion().distanciaA(
-                objetivo.getPosicion()
-        );
-
-        if (distancia <= getAlcance()) {
+        if (getPosicion() != null && objetivo.getPosicion() != null && getPosicion().distanciaA(objetivo.getPosicion()) <= getAlcance()) {
             atacar(motor, objetivos);
         } else {
-            mover(motor);
+            motor.moverAereoHaciaObjetivo(this, objetivo);
         }
     }
 }

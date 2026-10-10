@@ -1,14 +1,11 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.mycompany.mars_colony.modelo.partida;
 
 import com.mycompany.mars_colony.modelo.combate.ComponenteCombate;
 import com.mycompany.mars_colony.modelo.combate.Criatura;
-import java.util.ArrayList;
-import java.util.List;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class Mision implements Serializable {
 
@@ -17,13 +14,19 @@ public class Mision implements Serializable {
     private int numero;
     private EstadoMision estado;
     private int capacidadEnemiga;
-
     private List<Criatura> criaturas;
     private List<ComponenteCombate> participantes;
-
     private boolean generada;
 
     public Mision(int numero, int capacidadEnemiga, List<Criatura> criaturas, List<ComponenteCombate> participantes, boolean generada) {
+        if (numero < 1) {
+            throw new IllegalArgumentException("El número de misión debe ser mayor o igual a 1.");
+        }
+
+        if (capacidadEnemiga < 0) {
+            throw new IllegalArgumentException("La capacidad enemiga no puede ser negativa.");
+        }
+
         this.numero = numero;
         this.estado = EstadoMision.PREPARACION;
         this.capacidadEnemiga = capacidadEnemiga;
@@ -42,6 +45,20 @@ public class Mision implements Serializable {
         }
     }
 
+    public void agregarParticipante(ComponenteCombate participante) {
+        if (participante != null && !participantes.contains(participante)) {
+            participantes.add(participante);
+        }
+    }
+
+    public boolean eliminarParticipante(ComponenteCombate participante) {
+        if (participante == null) {
+            return false;
+        }
+
+        return participantes.remove(participante);
+    }
+
     public boolean todasCriaturasEliminadas() {
         for (Criatura criatura : criaturas) {
             if (criatura != null && criatura.estaOperativo()) {
@@ -53,9 +70,7 @@ public class Mision implements Serializable {
     }
 
     public void cerrarRegistros() {
-
         for (ComponenteCombate participante : participantes) {
-
             if (participante == null) {
                 continue;
             }
@@ -90,6 +105,10 @@ public class Mision implements Serializable {
     }
 
     public void setEstado(EstadoMision estado) {
+        if (estado == null) {
+            throw new IllegalArgumentException("El estado de la misión no puede ser nulo.");
+        }
+
         this.estado = estado;
     }
 
@@ -98,20 +117,14 @@ public class Mision implements Serializable {
     }
 
     public List<Criatura> getCriaturas() {
-        return criaturas;
+        return Collections.unmodifiableList(new ArrayList<>(criaturas));
     }
 
     public List<ComponenteCombate> getParticipantes() {
-        return participantes;
+        return Collections.unmodifiableList(new ArrayList<>(participantes));
     }
 
     public boolean isGenerada() {
         return generada;
-    }
-    
-    public void agregarParticipante(ComponenteCombate participante) {
-        if (participante != null && !participantes.contains(participante)) {
-            participantes.add(participante);
-        }
     }
 }

@@ -27,102 +27,211 @@ public class ConfiguracionComponente implements Serializable {
         validar();
     }
 
-    
     public void validar() {
-    if (id == null || id.isBlank()) {
-        throw new IllegalArgumentException("El id no puede estar vacío.");
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("El id no puede estar vacío.");
+        }
+
+        if (nombre == null || nombre.isBlank()) {
+            throw new IllegalArgumentException("El nombre no puede estar vacío.");
+        }
+
+        if (tipo == null) {
+            throw new IllegalArgumentException("El tipo de componente es obligatorio.");
+        }
+
+        if (base == null) {
+            throw new IllegalArgumentException("Las estadísticas base son obligatorias.");
+        }
+
+        if (imagenes == null) {
+            throw new IllegalArgumentException("Las imágenes son obligatorias.");
+        }
+
+        if (misionMinima < 1) {
+            throw new IllegalArgumentException("La misión mínima debe ser al menos 1.");
+        }
+
+        if (base.getVidaMaxima() <= 0) {
+            throw new IllegalArgumentException("La vida máxima debe ser mayor que 0.");
+        }
+
+        if (base.getDanioGolpe() < 0) {
+            throw new IllegalArgumentException("El daño no puede ser negativo.");
+        }
+
+        if (base.getFrecuenciaAtaque() < 0) {
+            throw new IllegalArgumentException("La frecuencia de ataque no puede ser negativa.");
+        }
+
+        if (base.getAlcance() < 0) {
+            throw new IllegalArgumentException("El alcance no puede ser negativo.");
+        }
+
+        if (base.getRadioEfecto() < 0) {
+            throw new IllegalArgumentException("El radio de efecto no puede ser negativo.");
+        }
+
+        if (base.getCostoCapacidad() <= 0) {
+            throw new IllegalArgumentException("El costo de capacidad debe ser mayor que 0.");
+        }
+
+        if (base.getCantidadAtaques() < 0) {
+            throw new IllegalArgumentException("La cantidad de ataques no puede ser negativa.");
+        }
+
+        if (base.getMaxObjetivos() < 0) {
+            throw new IllegalArgumentException("La cantidad máxima de objetivos no puede ser negativa.");
+        }
+
+        if (base.getIntervaloMovimientoMs() < 0) {
+            throw new IllegalArgumentException("El intervalo de movimiento no puede ser negativo.");
+        }
+
+        validarReglasTipo();
     }
 
-    if (nombre == null || nombre.isBlank()) {
-        throw new IllegalArgumentException("El nombre no puede estar vacío.");
+    private void validarReglasTipo() {
+        if (tipo == TipoComponente.BARRERA) {
+            validarBarrera();
+            return;
+        }
+
+        if (base.getDanioGolpe() <= 0) {
+            throw new IllegalArgumentException("Este tipo de componente debe tener daño mayor que 0.");
+        }
+
+        if (base.getFrecuenciaAtaque() <= 0) {
+            throw new IllegalArgumentException("Este tipo de componente debe tener frecuencia de ataque mayor que 0.");
+        }
+
+        switch (tipo) {
+            case DEFENSA_CONTACTO -> validarContacto();
+            case DEFENSA_ALCANCE -> validarAlcance();
+            case DRON -> validarDron();
+            case DEFENSA_IMPACTO -> validarImpacto();
+            case DEFENSA_MULTIPLE -> validarMultiple();
+            case ACECHADOR -> validarAcechador();
+            case ESCUPIDOR -> validarEscupidor();
+            case DEMOLEDOR -> validarDemoledor();
+            case VOLADOR -> validarVolador();
+            case ENJAMBRE -> validarEnjambre();
+            default -> {
+            }
+        }
     }
 
-    if (tipo == null) {
-        throw new IllegalArgumentException("El tipo de componente es obligatorio.");
+    private void validarBarrera() {
+        if (base.getDanioGolpe() != 0) {
+            throw new IllegalArgumentException("Una barrera debe tener daño igual a 0.");
+        }
+
+        if (base.getFrecuenciaAtaque() != 0) {
+            throw new IllegalArgumentException("Una barrera debe tener frecuencia de ataque igual a 0.");
+        }
     }
 
-    if (base == null) {
-        throw new IllegalArgumentException("Las estadísticas base son obligatorias.");
+    private void validarContacto() {
+        if (base.getAlcance() != 1) {
+            throw new IllegalArgumentException("Una defensa de contacto debe tener alcance igual a 1.");
+        }
     }
 
-    if (imagenes == null) {
-        throw new IllegalArgumentException("Las imágenes son obligatorias.");
+    private void validarAlcance() {
+        if (base.getAlcance() <= 1) {
+            throw new IllegalArgumentException("Una defensa de alcance debe tener alcance mayor que 1.");
+        }
     }
 
-    if (misionMinima < 1) {
-        throw new IllegalArgumentException("La misión mínima debe ser al menos 1.");
+    private void validarDron() {
+        validarAlcancePositivo();
+        validarMovimiento();
     }
 
-    if (base.getVidaMaxima() <= 0) {
-        throw new IllegalArgumentException("La vida máxima debe ser mayor que 0.");
+    private void validarImpacto() {
+        validarRadio();
     }
 
-    if (base.getDanioGolpe() < 0) {
-        throw new IllegalArgumentException("El daño no puede ser negativo.");
+    private void validarMultiple() {
+        validarAlcancePositivo();
+        validarAtaquesMultiples();
     }
 
-    if (base.getFrecuenciaAtaque() < 0) {
-        throw new IllegalArgumentException("La frecuencia de ataque no puede ser negativa.");
+    private void validarAcechador() {
+        if (base.getAlcance() != 1) {
+            throw new IllegalArgumentException("Un acechador debe atacar a distancia de contacto con alcance 1.");
+        }
+
+        validarMovimiento();
     }
 
-    if (base.getAlcance() < 0) {
-        throw new IllegalArgumentException("El alcance no puede ser negativo.");
+    private void validarEscupidor() {
+        if (base.getAlcance() <= 1) {
+            throw new IllegalArgumentException("Un escupidor debe tener alcance mayor que 1.");
+        }
+
+        validarMovimiento();
     }
 
-    if (base.getRadioEfecto() < 0) {
-        throw new IllegalArgumentException("El radio de efecto no puede ser negativo.");
+    private void validarDemoledor() {
+        validarRadio();
+        validarMovimiento();
     }
 
-    if (base.getCostoCapacidad() <= 0) {
-        throw new IllegalArgumentException("El costo de capacidad debe ser mayor que 0.");
+    private void validarVolador() {
+        validarAlcancePositivo();
+        validarMovimiento();
     }
 
-    if (base.getCantidadAtaques() < 0) {
-        throw new IllegalArgumentException("La cantidad de ataques no puede ser negativa.");
+    private void validarEnjambre() {
+        validarAlcancePositivo();
+        validarMovimiento();
+        validarAtaquesMultiples();
     }
 
-    if (base.getMaxObjetivos() < 0) {
-        throw new IllegalArgumentException("La cantidad máxima de objetivos no puede ser negativa.");
+    private void validarAlcancePositivo() {
+        if (base.getAlcance() <= 0) {
+            throw new IllegalArgumentException("Este tipo de componente requiere alcance mayor que 0.");
+        }
     }
 
-    if (base.getIntervaloMovimientoMs() < 0) {
-        throw new IllegalArgumentException("El intervalo de movimiento no puede ser negativo.");
+    private void validarRadio() {
+        if (base.getRadioEfecto() <= 0) {
+            throw new IllegalArgumentException("Este tipo de componente requiere radio de efecto mayor que 0.");
+        }
     }
 
-    if (tipo == TipoComponente.BARRERA && base.getDanioGolpe() != 0) {
-        throw new IllegalArgumentException("Una barrera debe tener daño igual a 0.");
+    private void validarMovimiento() {
+        if (base.getIntervaloMovimientoMs() <= 0) {
+            throw new IllegalArgumentException("Este tipo de componente requiere un intervalo de movimiento mayor que 0.");
+        }
     }
 
-    if (tipo == TipoComponente.BARRERA && base.getFrecuenciaAtaque() != 0) {
-        throw new IllegalArgumentException("Una barrera debe tener frecuencia de ataque igual a 0.");
+    private void validarAtaquesMultiples() {
+        if (base.getCantidadAtaques() <= 0) {
+            throw new IllegalArgumentException("Este tipo de componente requiere al menos un ataque por ciclo.");
+        }
+
+        if (base.getMaxObjetivos() <= 0) {
+            throw new IllegalArgumentException("Este tipo de componente requiere al menos un objetivo máximo.");
+        }
+
+        if (base.getCantidadAtaques() == 1 && base.getMaxObjetivos() == 1) {
+            throw new IllegalArgumentException("Un componente múltiple debe realizar varios ataques o afectar varios objetivos.");
+        }
     }
-
-    if (tipo != TipoComponente.BARRERA && base.getFrecuenciaAtaque() <= 0) {
-        throw new IllegalArgumentException("Los componentes activos deben tener frecuencia de ataque mayor que 0.");
-    }
-
-    boolean requiereAlcance = tipo == TipoComponente.DEFENSA_ALCANCE || tipo == TipoComponente.DRON || tipo == TipoComponente.DEFENSA_MULTIPLE || tipo == TipoComponente.ESCUPIDOR || tipo == TipoComponente.VOLADOR || tipo == TipoComponente.ENJAMBRE;
-
-    if (requiereAlcance && base.getAlcance() <= 0) {
-        throw new IllegalArgumentException("Este tipo de componente requiere un alcance mayor que 0.");
-    }
-
-    boolean requiereRadio = tipo == TipoComponente.DEFENSA_IMPACTO || tipo == TipoComponente.DEMOLEDOR;
-
-    if (requiereRadio && base.getRadioEfecto() <= 0) {
-        throw new IllegalArgumentException("Este tipo de componente requiere un radio de efecto mayor que 0.");
-    }
-}
 
     public void desactivar() {
         activo = false;
     }
-    
+
     public ConfiguracionComponente copiar() {
         ConfiguracionComponente copia = new ConfiguracionComponente(id, nombre, tipo, base, imagenes, misionMinima);
+
         if (!activo) {
             copia.desactivar();
         }
+
         return copia;
     }
 

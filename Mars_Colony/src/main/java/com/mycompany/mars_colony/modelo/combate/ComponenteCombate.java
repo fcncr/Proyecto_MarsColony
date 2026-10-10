@@ -21,24 +21,18 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
     private String id;
     private String idConfiguracion;
     private String nombre;
-
     private EstadisticasCombate estadisticas;
     private ImagenesEstado imagenes;
-
     private double vidaActual;
     private int nivel;
     private int misionMinima;
     private int misionEscaladaHasta;
-
     private Posicion posicion;
     private Posicion posicionInicial;
-
     private volatile EstadoVisual estadoVisual;
-
     private long restanteAtaqueMs;
     private long restanteMovimientoMs;
     private long restanteVisualMs;
-
     private RegistroCombate registro;
     private List<RegistroCrecimiento> crecimientos;
 
@@ -56,8 +50,8 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
         this.nivel = 1;
         this.misionMinima = misionMinima;
         this.misionEscaladaHasta = misionMinima;
-        this.posicion = posicion;
-        this.posicionInicial = posicion;
+        this.posicion = copiarPosicion(posicion);
+        this.posicionInicial = copiarPosicion(posicion);
         this.estadoVisual = EstadoVisual.NORMAL;
         this.restanteAtaqueMs = 0;
         this.restanteMovimientoMs = 0;
@@ -166,7 +160,14 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
     }
 
     public Posicion getPosicionInicial() {
-        return posicionInicial;
+        if (posicionInicial == null) {
+            return null;
+        }
+
+        return new Posicion(
+                posicionInicial.getFila(),
+                posicionInicial.getColumna()
+        );
     }
 
     public EstadoVisual getEstadoVisual() {
@@ -244,7 +245,6 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
         }
 
         double distancia = posicion.distanciaA(objetivo.getPosicion());
-
         return distancia <= estadisticas.getAlcance();
     }
 
@@ -261,11 +261,22 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
     }
 
     public void actualizarPosicion(Posicion posicion) {
-        this.posicion = posicion;
+        this.posicion = copiarPosicion(posicion);
     }
 
     public void setPosicion(Posicion posicion) {
         actualizarPosicion(posicion);
+    }
+
+    public void fijarPosicionInicial(Posicion posicion) {
+        if (posicion == null) {
+            throw new IllegalArgumentException("La posición inicial no puede ser nula.");
+        }
+
+        this.posicionInicial = new Posicion(
+                posicion.getFila(),
+                posicion.getColumna()
+        );
     }
 
     public void setVidaActual(double vidaActual) {
@@ -319,7 +330,16 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
 
     public void restablecerIntento() {
         vidaActual = estadisticas.getVidaMaxima();
-        posicion = posicionInicial;
+        posicion = copiarPosicion(posicionInicial);
+        estadoVisual = EstadoVisual.NORMAL;
+        restanteAtaqueMs = 0;
+        restanteMovimientoMs = 0;
+        restanteVisualMs = 0;
+        registro = new RegistroCombate();
+    }
+
+    public void prepararNuevaMision() {
+        vidaActual = estadisticas.getVidaMaxima();
         estadoVisual = EstadoVisual.NORMAL;
         restanteAtaqueMs = 0;
         restanteMovimientoMs = 0;
@@ -402,5 +422,13 @@ public abstract class ComponenteCombate implements OcupanteMapa, Serializable {
 
         estadoVisual = nuevoEstado;
         restanteVisualMs = DURACION_ESTADO_VISUAL_MS;
+    }
+
+    private static Posicion copiarPosicion(Posicion posicion) {
+        if (posicion == null) {
+            return null;
+        }
+
+        return new Posicion(posicion.getFila(), posicion.getColumna());
     }
 }

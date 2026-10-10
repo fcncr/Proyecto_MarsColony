@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.mycompany.mars_colony.modelo.mapa;
 
 import com.mycompany.mars_colony.modelo.combate.ComponenteCombate;
@@ -20,18 +16,18 @@ public class Tablero implements Serializable {
     private int filas;
     private int columnas;
     private Casilla[][] casillas;
-    
+
     public Tablero(NucleoOxigeno nucleo) {
         this(FILAS_POR_DEFECTO, COLUMNAS_POR_DEFECTO, nucleo);
     }
-   
+
     public Tablero(int filas, int columnas, NucleoOxigeno nucleo) {
         if (filas < 25 || columnas < 25) {
             throw new IllegalArgumentException("El tablero debe ser de al menos 25x25.");
         }
 
         if (nucleo == null) {
-            throw new IllegalArgumentException("El tablero necesita un nucleo de oxigeno.");
+            throw new IllegalArgumentException("El tablero necesita un núcleo de oxígeno.");
         }
 
         this.filas = filas;
@@ -41,10 +37,15 @@ public class Tablero implements Serializable {
         inicializarCasillas();
 
         Posicion centro = new Posicion(filas / 2, columnas / 2);
+
         nucleo.setPosicion(centro);
-        casillas[centro.getFila()][centro.getColumna()].colocar(nucleo);
+        nucleo.fijarPosicionInicial(centro);
+
+        if (!casillas[centro.getFila()][centro.getColumna()].colocar(nucleo)) {
+            throw new IllegalStateException("No fue posible colocar el núcleo en el centro del tablero.");
+        }
     }
-   
+
     private void inicializarCasillas() {
         for (int fila = 0; fila < filas; fila++) {
             for (int columna = 0; columna < columnas; columna++) {
@@ -52,15 +53,18 @@ public class Tablero implements Serializable {
             }
         }
     }
-   
+
     public boolean estaDentro(Posicion posicion) {
         if (posicion == null) {
             return false;
         }
 
-        return posicion.getFila() >= 0 && posicion.getFila() < filas && posicion.getColumna() >= 0 && posicion.getColumna() < columnas;
+        return posicion.getFila() >= 0
+                && posicion.getFila() < filas
+                && posicion.getColumna() >= 0
+                && posicion.getColumna() < columnas;
     }
-   
+
     public boolean estaLibre(Posicion posicion) {
         if (!estaDentro(posicion)) {
             return false;
@@ -68,7 +72,7 @@ public class Tablero implements Serializable {
 
         return casillas[posicion.getFila()][posicion.getColumna()].estaLibre();
     }
-    
+
     public OcupanteMapa obtener(Posicion posicion) {
         if (!estaDentro(posicion)) {
             return null;
@@ -76,14 +80,13 @@ public class Tablero implements Serializable {
 
         return casillas[posicion.getFila()][posicion.getColumna()].getOcupante();
     }
-    
+
     public boolean colocar(OcupanteMapa ocupante, Posicion posicion) {
         if (ocupante == null || !estaDentro(posicion) || !estaLibre(posicion)) {
             return false;
         }
 
-        if (ocupante instanceof ComponenteCombate) {
-            ComponenteCombate componente = (ComponenteCombate) ocupante;
+        if (ocupante instanceof ComponenteCombate componente) {
             componente.setPosicion(posicion);
         } else if (!posicion.equals(ocupante.getPosicion())) {
             return false;
@@ -91,7 +94,7 @@ public class Tablero implements Serializable {
 
         return casillas[posicion.getFila()][posicion.getColumna()].colocar(ocupante);
     }
-    
+
     public OcupanteMapa retirar(Posicion posicion) {
         if (!estaDentro(posicion)) {
             return null;
@@ -105,7 +108,7 @@ public class Tablero implements Serializable {
 
         return casillas[posicion.getFila()][posicion.getColumna()].retirar();
     }
-    
+
     public boolean mover(Posicion origen, Posicion destino) {
         if (!estaDentro(origen) || !estaDentro(destino) || !estaLibre(destino)) {
             return false;
@@ -125,7 +128,7 @@ public class Tablero implements Serializable {
 
         return true;
     }
-    
+
     public List<Posicion> posicionesExteriores() {
         List<Posicion> posiciones = new ArrayList<>();
 
@@ -141,7 +144,7 @@ public class Tablero implements Serializable {
 
         return Collections.unmodifiableList(posiciones);
     }
-    
+
     public int getFilas() {
         return filas;
     }
@@ -149,7 +152,7 @@ public class Tablero implements Serializable {
     public int getColumnas() {
         return columnas;
     }
-    
+
     public Casilla getCasilla(Posicion posicion) {
         if (!estaDentro(posicion)) {
             return null;

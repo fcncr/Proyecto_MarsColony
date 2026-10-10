@@ -14,69 +14,28 @@ public class Demoledor extends Criatura {
     public Demoledor(String idConfiguracion, String nombre, EstadisticasCombate estadisticas, ImagenesEstado imagenes, int misionMinima, Posicion posicion) {
         super(idConfiguracion, nombre, estadisticas, imagenes, misionMinima, posicion);
     }
-    
+
     @Override
     public boolean puedeAtacar(ComponenteCombate objetivo) {
-
-        if (objetivo == null || objetivo == this) {
+        if (objetivo == null || objetivo == this || !estaOperativo() || !objetivo.estaOperativo() || objetivo.getBando() == getBando() || objetivo.esAereo() && !getEstadisticas().isAtacaAereo() || getPosicion() == null || objetivo.getPosicion() == null) {
             return false;
         }
 
-        if (!estaOperativo() || !objetivo.estaOperativo()) {
-            return false;
-        }
-
-        if (objetivo.getBando() == getBando()) {
-            return false;
-        }
-
-        if (objetivo.esAereo() && !getEstadisticas().isAtacaAereo()) {
-            return false;
-        }
-
-        if (getPosicion() == null || objetivo.getPosicion() == null) {
-            return false;
-        }
-
-        double distancia = getPosicion().distanciaA(
-                objetivo.getPosicion()
-        );
-
-        return distancia <= getRadioEfecto();
+        return getPosicion().distanciaA(objetivo.getPosicion()) <= getRadioEfecto();
     }
 
     @Override
     public List<ComponenteCombate> seleccionarObjetivos(MotorBatalla motor) {
         List<ComponenteCombate> seleccionados = new ArrayList<>();
 
-        if (motor == null || !estaOperativa() || getPosicion() == null) {
+        if (motor == null || !estaOperativa()) {
             return seleccionados;
         }
 
-        List<ComponenteCombate> candidatos = motor.buscarObjetivos(this);
+        ComponenteCombate objetivo = motor.buscarObjetivoTerrestreAlcanzable(this);
 
-        ComponenteCombate masCercano = null;
-        double menorDistancia = Double.MAX_VALUE;
-
-    
-        for (ComponenteCombate candidato : candidatos) {
-
-            if (candidato == null || candidato.getPosicion() == null) {
-                continue;
-            }
-
-            double distancia = getPosicion().distanciaA(
-                    candidato.getPosicion()
-            );
-
-            if (distancia < menorDistancia) {
-                menorDistancia = distancia;
-                masCercano = candidato;
-            }
-        }
-
-        if (masCercano != null) {
-            seleccionados.add(masCercano);
+        if (objetivo != null) {
+            seleccionados.add(objetivo);
         }
 
         return seleccionados;
@@ -84,104 +43,25 @@ public class Demoledor extends Criatura {
 
     @Override
     public boolean mover(MotorBatalla motor) {
-        if (motor == null || !estaOperativa() || getPosicion() == null) {
+        if (motor == null || !estaOperativa()) {
             return false;
         }
 
-        List<ComponenteCombate> objetivos = seleccionarObjetivos(motor);
-
-        if (objetivos.isEmpty()) {
-            return false;
-        }
-
-        ComponenteCombate objetivo = objetivos.get(0);
-
-        if (objetivo.getPosicion() == null) {
-            return false;
-        }
-
-        Posicion actual = getPosicion();
-        Posicion destino = objetivo.getPosicion();
-
-        if (actual.esAdyacente(destino)) {
-            return false;
-        }
-
-        int cambioFila = Integer.compare(
-                destino.getFila(),
-                actual.getFila()
-        );
-
-        int cambioColumna = Integer.compare(
-                destino.getColumna(),
-                actual.getColumna()
-        );
-
-        Posicion siguiente = new Posicion(
-                actual.getFila() + cambioFila,
-                actual.getColumna() + cambioColumna
-        );
-
-        if (motor.mover(this, siguiente)) {
-            return true;
-        }
-
-        if (cambioFila != 0) {
-            Posicion alternativaFila = new Posicion(
-                    actual.getFila() + cambioFila,
-                    actual.getColumna()
-            );
-
-            if (motor.mover(this, alternativaFila)) {
-                return true;
-            }
-        }
-
-        if (cambioColumna != 0) {
-            Posicion alternativaColumna = new Posicion(
-                    actual.getFila(),
-                    actual.getColumna() + cambioColumna
-            );
-
-            if (motor.mover(this, alternativaColumna)) {
-                return true;
-            }
-        }
-
-        return false;
+        ComponenteCombate objetivo = motor.buscarObjetivoTerrestreAlcanzable(this);
+        return objetivo != null && motor.moverHaciaObjetivoTerrestre(this, objetivo);
     }
 
     @Override
     public void atacar(MotorBatalla motor, List<ComponenteCombate> objetivos) {
-        if (motor == null || !estaOperativa() || getPosicion() == null) {
+        if (motor == null || !estaOperativa() || getPosicion() == null || !puedeEjecutarAtaque()) {
             return;
         }
-
-        if (!puedeEjecutarAtaque()) {
-            return;
-        }
-
-        List<ComponenteCombate> candidatos =
-                motor.buscarObjetivos(this);
 
         boolean exploto = false;
 
-        for (ComponenteCombate candidato : candidatos) {
-
-            if (candidato == null || candidato.getPosicion() == null) {
-                continue;
-            }
-
-            double distancia = getPosicion().distanciaA(
-                    candidato.getPosicion()
-            );
-
-            if (distancia <= getRadioEfecto()) {
-
-                double danioEfectivo = motor.aplicarAtaque(
-                        this,
-                        candidato
-                );
+        for (ComponenteCombate candidato : motor.buscarObjetivos(this)) {
+            if (candidato != null && candidato.getPosicion() != null && getPosicion().distanciaA(candidato.getPosicion()) <= getRadioEfecto()) {
+                double danioEfectivo = motor.aplicarAtaque(this, candidato);
 
                 if (danioEfectivo > 0) {
                     exploto = true;
@@ -209,14 +89,10 @@ public class Demoledor extends Criatura {
 
         ComponenteCombate objetivo = objetivos.get(0);
 
-        if (objetivo.getPosicion() == null || getPosicion() == null) {
-            return;
-        }
-
-        if (getPosicion().esAdyacente(objetivo.getPosicion())) {
+        if (getPosicion() != null && objetivo.getPosicion() != null && getPosicion().esAdyacente(objetivo.getPosicion())) {
             atacar(motor, objetivos);
         } else {
-            mover(motor);
+            motor.moverHaciaObjetivoTerrestre(this, objetivo);
         }
     }
 }

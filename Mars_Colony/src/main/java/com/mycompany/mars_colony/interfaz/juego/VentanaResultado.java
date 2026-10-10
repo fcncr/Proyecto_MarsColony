@@ -12,6 +12,8 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Window;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.List;
 import java.util.Map;
 import javax.swing.BorderFactory;
@@ -35,21 +37,16 @@ public class VentanaResultado extends JDialog {
 
     private final JLabel etiquetaMision;
     private final JLabel etiquetaResultado;
-
     private final DefaultTableModel modeloParticipantes;
     private final JTable tablaParticipantes;
-
     private final JLabel etiquetaUnidadSeleccionada;
     private final JLabel etiquetaDanio;
     private final JLabel etiquetaFrecuencia;
     private final JLabel etiquetaPosicionFinal;
-
     private final DefaultTableModel modeloObjetivos;
     private final JTable tablaObjetivos;
-
     private final DefaultTableModel modeloAtacantes;
     private final JTable tablaAtacantes;
-
     private final JButton botonRepetir;
     private final JButton botonAvanzar;
     private final JButton botonFinalizar;
@@ -87,7 +84,6 @@ public class VentanaResultado extends JDialog {
 
         this.mision = validarMisionFinalizada(mision);
         this.acciones = acciones;
-
         this.etiquetaMision = new JLabel("", SwingConstants.CENTER);
         this.etiquetaResultado = new JLabel("", SwingConstants.CENTER);
 
@@ -95,24 +91,20 @@ public class VentanaResultado extends JDialog {
 
         this.modeloParticipantes = new DefaultTableModel(columnasParticipantes, 0) {
             @Override
-            public boolean isCellEditable(int row, int column) {
+            public boolean isCellEditable(int fila, int columna) {
                 return false;
             }
         };
 
         this.tablaParticipantes = new JTable(modeloParticipantes);
-
         this.etiquetaUnidadSeleccionada = new JLabel("-");
         this.etiquetaDanio = new JLabel("-");
         this.etiquetaFrecuencia = new JLabel("-");
         this.etiquetaPosicionFinal = new JLabel("-");
-
         this.modeloObjetivos = crearModeloInteracciones();
         this.tablaObjetivos = new JTable(modeloObjetivos);
-
         this.modeloAtacantes = crearModeloInteracciones();
         this.tablaAtacantes = new JTable(modeloAtacantes);
-
         this.botonRepetir = new JButton("Repetir misión");
         this.botonAvanzar = new JButton("Avanzar");
         this.botonFinalizar = new JButton("Finalizar campaña");
@@ -143,18 +135,25 @@ public class VentanaResultado extends JDialog {
 
         return new DefaultTableModel(columnas, 0) {
             @Override
-            public boolean isCellEditable(int row, int column) {
+            public boolean isCellEditable(int fila, int columna) {
                 return false;
             }
         };
     }
 
     private void configurarVentana() {
-        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
         setMinimumSize(new Dimension(1000, 650));
         setSize(1100, 720);
         setLocationRelativeTo(getOwner());
         setResizable(true);
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                cerrarSiPermitido();
+            }
+        });
     }
 
     private void construirInterfaz() {
@@ -176,17 +175,13 @@ public class VentanaResultado extends JDialog {
         JScrollPane scrollParticipantes = new JScrollPane(tablaParticipantes);
         scrollParticipantes.setBorder(BorderFactory.createTitledBorder("Participantes de la misión"));
 
-        JPanel panelDetalle = crearPanelDetalle();
-
-        JSplitPane division = new JSplitPane(JSplitPane.VERTICAL_SPLIT, scrollParticipantes, panelDetalle);
+        JSplitPane division = new JSplitPane(JSplitPane.VERTICAL_SPLIT, scrollParticipantes, crearPanelDetalle());
         division.setResizeWeight(0.45);
         division.setContinuousLayout(true);
 
-        JPanel panelBotones = crearPanelAcciones();
-
         contenido.add(panelResultado, BorderLayout.NORTH);
         contenido.add(division, BorderLayout.CENTER);
-        contenido.add(panelBotones, BorderLayout.SOUTH);
+        contenido.add(crearPanelAcciones(), BorderLayout.SOUTH);
 
         setContentPane(contenido);
     }
@@ -236,35 +231,8 @@ public class VentanaResultado extends JDialog {
         return panel;
     }
 
-    private void mostrarResultado() {
-        etiquetaMision.setText("Misión " + mision.getNumero());
-
-        if (mision.getEstado() == EstadoMision.VICTORIA) {
-            etiquetaResultado.setText("VICTORIA");
-        } else {
-            etiquetaResultado.setText("DERROTA");
-        }
-    }
-
-    private void cargarParticipantes() {
-        modeloParticipantes.setRowCount(0);
-
-        List<ComponenteCombate> participantes = mision.getParticipantes();
-
-        for (ComponenteCombate participante : participantes) {
-            RegistroCombate registro = participante.getRegistroCombate();
-            String estado = participante.estaDestruido() ? "DESTRUIDO" : "VIVO";
-            Object[] fila = {participante.getNombre(), registro.getTipo(), participante.getBando(), registro.getVidaInicial(), registro.getVidaFinal(), estado};
-            modeloParticipantes.addRow(fila);
-        }
-
-        if (modeloParticipantes.getRowCount() > 0) {
-            tablaParticipantes.setRowSelectionInterval(0, 0);
-        }
-    }
-
     private void conectarEventos() {
-        botonCerrar.addActionListener(e -> dispose());
+        botonCerrar.addActionListener(e -> cerrarSiPermitido());
         botonRepetir.addActionListener(e -> ejecutarRepeticion());
         botonAvanzar.addActionListener(e -> ejecutarAvance());
         botonFinalizar.addActionListener(e -> ejecutarFinalizacion());
@@ -274,6 +242,33 @@ public class VentanaResultado extends JDialog {
                 mostrarDetalleSeleccionado();
             }
         });
+    }
+
+    private void mostrarResultado() {
+        etiquetaMision.setText("Misión " + mision.getNumero());
+        etiquetaResultado.setText(mision.getEstado() == EstadoMision.VICTORIA ? "VICTORIA" : "DERROTA");
+    }
+
+    private void cargarParticipantes() {
+        modeloParticipantes.setRowCount(0);
+
+        for (ComponenteCombate participante : mision.getParticipantes()) {
+            RegistroCombate registro = participante.getRegistroCombate();
+            String estado = participante.estaDestruido() ? "DESTRUIDO" : "VIVO";
+
+            modeloParticipantes.addRow(new Object[]{
+                participante.getNombre(),
+                registro.getTipo(),
+                participante.getBando(),
+                registro.getVidaInicial(),
+                registro.getVidaFinal(),
+                estado
+            });
+        }
+
+        if (modeloParticipantes.getRowCount() > 0) {
+            tablaParticipantes.setRowSelectionInterval(0, 0);
+        }
     }
 
     private void mostrarDetalleSeleccionado() {
@@ -309,8 +304,11 @@ public class VentanaResultado extends JDialog {
         modelo.setRowCount(0);
 
         for (ResumenInteraccion resumen : interacciones.values()) {
-            Object[] fila = {resumen.getNombre(), resumen.getCantidadGolpes(), resumen.getDanioTotal()};
-            modelo.addRow(fila);
+            modelo.addRow(new Object[]{
+                resumen.getNombre(),
+                resumen.getCantidadGolpes(),
+                resumen.getDanioTotal()
+            });
         }
     }
 
@@ -328,24 +326,46 @@ public class VentanaResultado extends JDialog {
             botonRepetir.setEnabled(false);
             botonAvanzar.setEnabled(false);
             botonFinalizar.setVisible(false);
+            botonCerrar.setVisible(true);
             return;
         }
 
-        botonRepetir.setEnabled(acciones.puedeRepetir());
-        botonAvanzar.setEnabled(acciones.puedeAvanzar());
+        boolean repetir = acciones.puedeRepetir();
+        boolean avanzar = acciones.puedeAvanzar();
+        boolean finalizar = acciones.puedeFinalizarCampania();
 
-        boolean puedeFinalizar = acciones.puedeFinalizarCampania();
+        botonRepetir.setEnabled(repetir);
+        botonAvanzar.setEnabled(avanzar);
+        botonFinalizar.setVisible(finalizar);
+        botonFinalizar.setEnabled(finalizar);
+        botonCerrar.setVisible(!repetir && !avanzar && !finalizar);
+    }
 
-        botonFinalizar.setVisible(puedeFinalizar);
-        botonFinalizar.setEnabled(puedeFinalizar);
+    private void cerrarSiPermitido() {
+        if (acciones == null) {
+            dispose();
+            return;
+        }
+
+        boolean hayAccion = acciones.puedeRepetir()
+                || acciones.puedeAvanzar()
+                || acciones.puedeFinalizarCampania();
+
+        if (!hayAccion) {
+            dispose();
+            return;
+        }
+
+        JOptionPane.showMessageDialog(
+                this,
+                "Seleccione Repetir misión, Avanzar o Finalizar campaña antes de cerrar el resultado.",
+                "Resultado de la misión",
+                JOptionPane.INFORMATION_MESSAGE
+        );
     }
 
     private void ejecutarRepeticion() {
-        if (acciones == null) {
-            return;
-        }
-
-        if (acciones.repetirMision()) {
+        if (acciones != null && acciones.repetirMision()) {
             dispose();
             return;
         }
@@ -355,11 +375,7 @@ public class VentanaResultado extends JDialog {
     }
 
     private void ejecutarAvance() {
-        if (acciones == null) {
-            return;
-        }
-
-        if (acciones.avanzar()) {
+        if (acciones != null && acciones.avanzar()) {
             dispose();
             return;
         }
@@ -369,11 +385,7 @@ public class VentanaResultado extends JDialog {
     }
 
     private void ejecutarFinalizacion() {
-        if (acciones == null) {
-            return;
-        }
-
-        if (acciones.finalizarCampania()) {
+        if (acciones != null && acciones.finalizarCampania()) {
             dispose();
             return;
         }
@@ -385,7 +397,7 @@ public class VentanaResultado extends JDialog {
     private void mostrarErrorAccion(String mensaje) {
         JOptionPane.showMessageDialog(this, mensaje, "Acción no disponible", JOptionPane.WARNING_MESSAGE);
     }
-    
+
     public static void abrir(Mision mision) {
         abrir(null, mision, null);
     }
@@ -406,7 +418,7 @@ public class VentanaResultado extends JDialog {
             ventana.setVisible(true);
         });
     }
-    
+
     private static void ejecutarEnEdt(Runnable tarea) {
         if (SwingUtilities.isEventDispatchThread()) {
             tarea.run();
@@ -414,11 +426,11 @@ public class VentanaResultado extends JDialog {
             SwingUtilities.invokeLater(tarea);
         }
     }
-    
+
     public void actualizarVista() {
         ejecutarEnEdt(this::actualizarVistaEnEdt);
     }
-    
+
     private void actualizarVistaEnEdt() {
         mostrarResultado();
         cargarParticipantes();
@@ -426,7 +438,7 @@ public class VentanaResultado extends JDialog {
         revalidate();
         repaint();
     }
-    
+
     public Mision getMision() {
         return mision;
     }
