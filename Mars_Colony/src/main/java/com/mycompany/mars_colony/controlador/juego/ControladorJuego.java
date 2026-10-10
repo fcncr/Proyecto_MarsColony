@@ -523,7 +523,9 @@ public class ControladorJuego {
         }
 
         if (generadorMision == null) {
-            throw new IllegalStateException("No se configuró el generador de misiones.");
+            throw new IllegalStateException(
+                    "No se configuró el generador de misiones."
+            );
         }
 
         Partida candidata = copiarPartida(partida);
@@ -532,7 +534,10 @@ public class ControladorJuego {
         Tablero tablero = candidata.getTablero();
         Escuadron escuadron = candidata.getEscuadron();
 
-        if (misionAnterior == null || tablero == null || escuadron == null) {
+        if (misionAnterior == null
+                || tablero == null
+                || escuadron == null) {
+
             throw new IllegalStateException(
                     "La partida no contiene los elementos necesarios para avanzar de misión."
             );
@@ -542,8 +547,23 @@ public class ControladorJuego {
             return false;
         }
 
-        limpiarParticipantesNoNucleo(misionAnterior, tablero);
+        limpiarParticipantesNoNucleo(
+                misionAnterior,
+                tablero
+        );
+
+        for (Defensa defensa : escuadron.getDefensas()) {
+            if (defensa != null) {
+                servicioProgresion.aplicarCrecimiento(
+                        defensa,
+                        candidata.getMisionActual(),
+                        candidata.getAzar()
+                );
+            }
+        }
+
         prepararDefensasParaNuevaMision(escuadron);
+
         generadorMision.generar(candidata);
 
         partida = candidata;
