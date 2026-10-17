@@ -11,22 +11,37 @@ import java.util.List;
 
 public class Enjambre extends Criatura {
 
-    public Enjambre(String idConfiguracion, String nombre, EstadisticasCombate estadisticas, ImagenesEstado imagenes, int misionMinima, Posicion posicion) {
-        super(idConfiguracion, nombre, estadisticas, imagenes, misionMinima, posicion);
+    public Enjambre(String idConfiguracion, String nombre,
+            EstadisticasCombate estadisticas, ImagenesEstado imagenes,
+            int misionMinima, Posicion posicion) {
+        super(idConfiguracion, nombre, estadisticas, imagenes,
+                misionMinima, posicion);
     }
 
     @Override
-    public List<ComponenteCombate> seleccionarObjetivos(MotorBatalla motor) {
+    public List<ComponenteCombate> seleccionarObjetivos(
+            MotorBatalla motor) {
+
         List<ComponenteCombate> seleccionados = new ArrayList<>();
 
-        if (motor == null || !estaOperativa() || getPosicion() == null) {
+        if (motor == null || !estaOperativa()
+                || getPosicion() == null) {
             return seleccionados;
         }
 
-        int maxObjetivos = Math.max(1, getEstadisticas().getMaxObjetivos());
+        int maxObjetivos = Math.max(
+                1, getEstadisticas().getMaxObjetivos()
+        );
 
-        for (ComponenteCombate candidato : motor.buscarObjetivos(this)) {
-            if (candidato != null && candidato.getPosicion() != null && getPosicion().distanciaA(candidato.getPosicion()) <= getAlcance()) {
+        for (ComponenteCombate candidato
+                : motor.buscarObjetivos(this)) {
+
+            if (candidato != null
+                    && candidato.getPosicion() != null
+                    && getPosicion().distanciaA(
+                            candidato.getPosicion()
+                    ) <= getAlcance()) {
+
                 seleccionados.add(candidato);
             }
 
@@ -40,30 +55,58 @@ public class Enjambre extends Criatura {
 
     @Override
     public boolean mover(MotorBatalla motor) {
+
         if (motor == null || !estaOperativa()) {
             return false;
         }
 
-        ComponenteCombate objetivo = motor.buscarObjetivoTerrestreAlcanzable(this);
-        return objetivo != null && motor.moverHaciaObjetivoTerrestre(this, objetivo);
+        ComponenteCombate objetivo =
+                motor.buscarObjetivoTerrestreAlcanzable(this);
+
+        return objetivo != null
+                && motor.moverHaciaObjetivoTerrestre(
+                        this, objetivo
+                );
     }
 
     @Override
-    public void atacar(MotorBatalla motor, List<ComponenteCombate> objetivos) {
-        if (motor == null || objetivos == null || objetivos.isEmpty() || !estaOperativa() || !puedeEjecutarAtaque()) {
+    public void atacar(MotorBatalla motor,
+            List<ComponenteCombate> objetivos) {
+
+        if (motor == null || objetivos == null
+                || objetivos.isEmpty() || !estaOperativa()
+                || !puedeEjecutarAtaque()) {
             return;
         }
 
-        int cantidadAtaques = Math.max(1, getEstadisticas().getCantidadAtaques());
+        int cantidadAtaques = Math.max(
+                1, getEstadisticas().getCantidadAtaques()
+        );
+
+        // QA06: un Enjambre puede golpear a varios objetivos
+        // aun cuando solo tenga un ataque configurado.
+        int maxObjetivos = Math.max(
+                1, getEstadisticas().getMaxObjetivos()
+        );
+
+        int cantidadGolpes = Math.max(
+                cantidadAtaques,
+                Math.min(maxObjetivos, objetivos.size())
+        );
+
         int indiceObjetivo = 0;
         boolean realizoAtaque = false;
 
-        for (int ataque = 0; ataque < cantidadAtaques; ataque++) {
+        for (int ataque = 0; ataque < cantidadGolpes; ataque++) {
+
             if (!motor.estaEnEjecucion() || !estaOperativa()) {
                 break;
             }
 
-            ComponenteCombate objetivo = obtenerSiguienteObjetivoOperativo(objetivos, indiceObjetivo);
+            ComponenteCombate objetivo =
+                    obtenerSiguienteObjetivoOperativo(
+                            objetivos, indiceObjetivo
+                    );
 
             if (objetivo == null) {
                 break;
@@ -75,8 +118,15 @@ public class Enjambre extends Criatura {
                 indiceObjetivo = 0;
             }
 
-            if (objetivo.getPosicion() != null && getPosicion() != null && getPosicion().distanciaA(objetivo.getPosicion()) <= getAlcance()) {
-                double danioEfectivo = motor.aplicarAtaque(this, objetivo);
+            if (objetivo.getPosicion() != null
+                    && getPosicion() != null
+                    && getPosicion().distanciaA(
+                            objetivo.getPosicion()
+                    ) <= getAlcance()) {
+
+                double danioEfectivo = motor.aplicarAtaque(
+                        this, objetivo
+                );
 
                 if (danioEfectivo > 0) {
                     realizoAtaque = true;
@@ -89,13 +139,18 @@ public class Enjambre extends Criatura {
         }
     }
 
-    private ComponenteCombate obtenerSiguienteObjetivoOperativo(List<ComponenteCombate> objetivos, int inicio) {
+    private ComponenteCombate obtenerSiguienteObjetivoOperativo(
+            List<ComponenteCombate> objetivos, int inicio) {
+
         if (objetivos == null || objetivos.isEmpty()) {
             return null;
         }
 
         for (int i = 0; i < objetivos.size(); i++) {
-            ComponenteCombate objetivo = objetivos.get((inicio + i) % objetivos.size());
+
+            ComponenteCombate objetivo = objetivos.get(
+                    (inicio + i) % objetivos.size()
+            );
 
             if (objetivo != null && objetivo.estaOperativo()) {
                 return objetivo;
@@ -107,11 +162,14 @@ public class Enjambre extends Criatura {
 
     @Override
     public void ejecutarCiclo(MotorBatalla motor, long dtMs) {
-        if (motor == null || !motor.estaEnEjecucion() || !estaOperativa()) {
+
+        if (motor == null || !motor.estaEnEjecucion()
+                || !estaOperativa()) {
             return;
         }
 
-        List<ComponenteCombate> objetivos = seleccionarObjetivos(motor);
+        List<ComponenteCombate> objetivos =
+                seleccionarObjetivos(motor);
 
         if (!objetivos.isEmpty()) {
             atacar(motor, objetivos);

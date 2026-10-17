@@ -12,23 +12,29 @@ import java.util.List;
 
 public class DefensaMultiple extends DefensaActiva {
 
-    public DefensaMultiple(String idConfiguracion, String nombre, EstadisticasCombate estadisticas, ImagenesEstado imagenes, int misionMinima, Posicion posicion) {
-        super(idConfiguracion, nombre, estadisticas, imagenes, misionMinima, posicion);
+    public DefensaMultiple(String idConfiguracion, String nombre,
+            EstadisticasCombate estadisticas, ImagenesEstado imagenes,
+            int misionMinima, Posicion posicion) {
+        super(idConfiguracion, nombre, estadisticas, imagenes,
+                misionMinima, posicion);
     }
 
     @Override
-    public List<ComponenteCombate> seleccionarObjetivos(MotorBatalla motor) {
+    public List<ComponenteCombate> seleccionarObjetivos(
+            MotorBatalla motor) {
+
         List<ComponenteCombate> seleccionados = new ArrayList<>();
 
-        if (motor == null || !estaOperativa() || getPosicion() == null) {
+        if (motor == null || !estaOperativa()
+                || getPosicion() == null) {
             return seleccionados;
         }
 
-        List<ComponenteCombate> candidatos = motor.buscarObjetivos(this);
+        List<ComponenteCombate> candidatos =
+                motor.buscarObjetivos(this);
 
         int maxObjetivos = Math.max(
-                1,
-                getEstadisticas().getMaxObjetivos()
+                1, getEstadisticas().getMaxObjetivos()
         );
 
         for (ComponenteCombate candidato : candidatos) {
@@ -58,8 +64,11 @@ public class DefensaMultiple extends DefensaActiva {
     }
 
     @Override
-    public void atacar(MotorBatalla motor, List<ComponenteCombate> objetivos) {
-        if (motor == null || objetivos == null || objetivos.isEmpty() || !estaOperativa()) {
+    public void atacar(MotorBatalla motor,
+            List<ComponenteCombate> objetivos) {
+
+        if (motor == null || objetivos == null
+                || objetivos.isEmpty() || !estaOperativa()) {
             return;
         }
 
@@ -68,23 +77,33 @@ public class DefensaMultiple extends DefensaActiva {
         }
 
         int cantidadAtaques = Math.max(
-                1,
-                getEstadisticas().getCantidadAtaques()
+                1, getEstadisticas().getCantidadAtaques()
+        );
+
+        // QA06: soportar multiplicidad tanto por disparos
+        // como por cantidad de objetivos.
+        int maxObjetivos = Math.max(
+                1, getEstadisticas().getMaxObjetivos()
+        );
+
+        int cantidadGolpes = Math.max(
+                cantidadAtaques,
+                Math.min(maxObjetivos, objetivos.size())
         );
 
         int indiceObjetivo = 0;
         boolean realizoAtaque = false;
 
-        for (int ataque = 0; ataque < cantidadAtaques; ataque++) {
+        for (int ataque = 0; ataque < cantidadGolpes; ataque++) {
 
-            if (!estaOperativa()) {
+            if (!motor.estaEnEjecucion() || !estaOperativa()) {
                 break;
             }
 
-            ComponenteCombate objetivo = obtenerSiguienteObjetivoOperativo(
-                    objetivos,
-                    indiceObjetivo
-            );
+            ComponenteCombate objetivo =
+                    obtenerSiguienteObjetivoOperativo(
+                            objetivos, indiceObjetivo
+                    );
 
             if (objetivo == null) {
                 break;
@@ -96,7 +115,8 @@ public class DefensaMultiple extends DefensaActiva {
                 indiceObjetivo = 0;
             }
 
-            if (objetivo.getPosicion() == null || getPosicion() == null) {
+            if (objetivo.getPosicion() == null
+                    || getPosicion() == null) {
                 continue;
             }
 
@@ -107,8 +127,7 @@ public class DefensaMultiple extends DefensaActiva {
             if (distancia <= getAlcance()) {
 
                 double danioEfectivo = motor.aplicarAtaque(
-                        this,
-                        objetivo
+                        this, objetivo
                 );
 
                 if (danioEfectivo > 0) {
@@ -122,7 +141,8 @@ public class DefensaMultiple extends DefensaActiva {
         }
     }
 
-    private ComponenteCombate obtenerSiguienteObjetivoOperativo(List<ComponenteCombate> objetivos, int inicio) {
+    private ComponenteCombate obtenerSiguienteObjetivoOperativo(
+            List<ComponenteCombate> objetivos, int inicio) {
 
         if (objetivos == null || objetivos.isEmpty()) {
             return null;
@@ -144,11 +164,14 @@ public class DefensaMultiple extends DefensaActiva {
 
     @Override
     public void ejecutarCiclo(MotorBatalla motor, long dtMs) {
-        if (motor == null || !motor.estaEnEjecucion() || !estaOperativa()) {
+
+        if (motor == null || !motor.estaEnEjecucion()
+                || !estaOperativa()) {
             return;
         }
 
-        List<ComponenteCombate> objetivos = seleccionarObjetivos(motor);
+        List<ComponenteCombate> objetivos =
+                seleccionarObjetivos(motor);
 
         if (!objetivos.isEmpty()) {
             atacar(motor, objetivos);
