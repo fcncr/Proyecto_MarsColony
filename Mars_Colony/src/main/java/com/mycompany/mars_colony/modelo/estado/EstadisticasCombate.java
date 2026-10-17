@@ -29,6 +29,10 @@ public class EstadisticasCombate implements Serializable {
             int maxObjetivos,
             long intervaloMovimientoMs) {
 
+        validarNumeroFinito(vidaMaxima, "La vida máxima");
+        validarNumeroFinito(danioGolpe, "El daño por golpe");
+        validarNumeroFinito(frecuenciaAtaque, "La frecuencia de ataque");
+
         this.vidaMaxima = vidaMaxima;
         this.danioGolpe = danioGolpe;
         this.frecuenciaAtaque = frecuenciaAtaque;
@@ -39,6 +43,14 @@ public class EstadisticasCombate implements Serializable {
         this.cantidadAtaques = cantidadAtaques;
         this.maxObjetivos = maxObjetivos;
         this.intervaloMovimientoMs = intervaloMovimientoMs;
+    }
+
+    private static void validarNumeroFinito(double valor, String nombre) {
+        if (!Double.isFinite(valor)) {
+            throw new IllegalArgumentException(
+                    nombre + " debe contener un número finito válido."
+            );
+        }
     }
 
     public EstadisticasCombate copiar() {
@@ -61,6 +73,7 @@ public class EstadisticasCombate implements Serializable {
     }
 
     public void setVidaMaxima(double vidaMaxima) {
+        validarNumeroFinito(vidaMaxima, "La vida máxima");
         this.vidaMaxima = vidaMaxima;
     }
 
@@ -69,6 +82,7 @@ public class EstadisticasCombate implements Serializable {
     }
 
     public void setDanioGolpe(double danioGolpe) {
+        validarNumeroFinito(danioGolpe, "El daño por golpe");
         this.danioGolpe = danioGolpe;
     }
 
@@ -77,6 +91,7 @@ public class EstadisticasCombate implements Serializable {
     }
 
     public void setFrecuenciaAtaque(double frecuenciaAtaque) {
+        validarNumeroFinito(frecuenciaAtaque, "La frecuencia de ataque");
         this.frecuenciaAtaque = frecuenciaAtaque;
     }
 

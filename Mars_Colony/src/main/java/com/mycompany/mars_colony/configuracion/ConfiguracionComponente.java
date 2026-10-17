@@ -52,6 +52,18 @@ public class ConfiguracionComponente implements Serializable {
             throw new IllegalArgumentException("La misión mínima debe ser al menos 1.");
         }
 
+        if (!Double.isFinite(base.getVidaMaxima())) {
+            throw new IllegalArgumentException("La vida máxima debe ser un número finito válido.");
+        }
+
+        if (!Double.isFinite(base.getDanioGolpe())) {
+            throw new IllegalArgumentException("El daño debe ser un número finito válido.");
+        }
+
+        if (!Double.isFinite(base.getFrecuenciaAtaque())) {
+            throw new IllegalArgumentException("La frecuencia de ataque debe ser un número finito válido.");
+        }
+
         if (base.getVidaMaxima() <= 0) {
             throw new IllegalArgumentException("La vida máxima debe ser mayor que 0.");
         }

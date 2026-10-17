@@ -1,6 +1,7 @@
 package com.mycompany.mars_colony.persistencia;
 
 import com.mycompany.mars_colony.configuracion.CatalogoComponentes;
+import com.mycompany.mars_colony.configuracion.ConfiguracionComponente;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -29,6 +30,9 @@ public class RepositorioCatalogo implements Serializable {
             throw new IllegalArgumentException("El catálogo no puede ser nulo.");
         }
 
+        // Validar antes de abrir el archivo: un catálogo inválido no reemplaza al anterior.
+        validarCatalogo(c);
+
         Path directorioPadre = archivo.getParent();
 
         try {
@@ -36,29 +40,48 @@ public class RepositorioCatalogo implements Serializable {
                 Files.createDirectories(directorioPadre);
             }
 
-            try (FileOutputStream archivoSalida = new FileOutputStream(archivo.toFile()); ObjectOutputStream salida = new ObjectOutputStream(archivoSalida)) {
+            try (FileOutputStream archivoSalida = new FileOutputStream(archivo.toFile());
+                    ObjectOutputStream salida = new ObjectOutputStream(archivoSalida)) {
                 salida.writeObject(c);
             }
         } catch (IOException e) {
             throw new IllegalStateException("No se pudo guardar el catálogo en: " + archivo, e);
+        }
     }
-}
 
     public CatalogoComponentes cargar() {
         if (Files.notExists(archivo)) {
             return new CatalogoComponentes();
         }
 
-        try (FileInputStream archivoEntrada = new FileInputStream(archivo.toFile()); ObjectInputStream entrada = new ObjectInputStream(archivoEntrada)) {
+        try (FileInputStream archivoEntrada = new FileInputStream(archivo.toFile());
+                ObjectInputStream entrada = new ObjectInputStream(archivoEntrada)) {
             Object objeto = entrada.readObject();
 
-            if (!(objeto instanceof CatalogoComponentes)) {
+            if (!(objeto instanceof CatalogoComponentes catalogo)) {
                 throw new IllegalStateException("El archivo no contiene un catálogo válido.");
             }
 
-            return (CatalogoComponentes) objeto;
+            validarCatalogo(catalogo);
+            return catalogo;
         } catch (IOException | ClassNotFoundException e) {
             throw new IllegalStateException("No se pudo cargar el catálogo desde: " + archivo, e);
+        }
+    }
+
+    private void validarCatalogo(CatalogoComponentes catalogo) {
+        try {
+            for (ConfiguracionComponente configuracion : catalogo.listar()) {
+                if (configuracion == null) {
+                    throw new IllegalArgumentException("El catálogo contiene una configuración nula.");
+                }
+                configuracion.validar();
+            }
+        } catch (RuntimeException e) {
+            throw new IllegalStateException(
+                    "El catálogo contiene configuraciones inválidas y no puede utilizarse: "
+                    + e.getMessage(), e
+            );
         }
     }
 }
