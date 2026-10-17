@@ -11,28 +11,58 @@ import java.util.List;
 
 public class Demoledor extends Criatura {
 
-    public Demoledor(String idConfiguracion, String nombre, EstadisticasCombate estadisticas, ImagenesEstado imagenes, int misionMinima, Posicion posicion) {
-        super(idConfiguracion, nombre, estadisticas, imagenes, misionMinima, posicion);
+    public Demoledor(
+            String idConfiguracion,
+            String nombre,
+            EstadisticasCombate estadisticas,
+            ImagenesEstado imagenes,
+            int misionMinima,
+            Posicion posicion) {
+
+        super(
+                idConfiguracion,
+                nombre,
+                estadisticas,
+                imagenes,
+                misionMinima,
+                posicion
+        );
     }
 
     @Override
     public boolean puedeAtacar(ComponenteCombate objetivo) {
-        if (objetivo == null || objetivo == this || !estaOperativo() || !objetivo.estaOperativo() || objetivo.getBando() == getBando() || objetivo.esAereo() && !getEstadisticas().isAtacaAereo() || getPosicion() == null || objetivo.getPosicion() == null) {
+
+        if (objetivo == null
+                || objetivo == this
+                || !estaOperativo()
+                || !objetivo.estaOperativo()
+                || objetivo.getBando() == getBando()
+                || (objetivo.esAereo()
+                    && !getEstadisticas().isAtacaAereo())
+                || getPosicion() == null
+                || objetivo.getPosicion() == null
+                || getDanioGolpe() <= 0) {
             return false;
         }
 
-        return getPosicion().distanciaA(objetivo.getPosicion()) <= getRadioEfecto();
+        return getPosicion().distanciaA(
+                objetivo.getPosicion()
+        ) <= getRadioEfecto();
     }
 
     @Override
-    public List<ComponenteCombate> seleccionarObjetivos(MotorBatalla motor) {
-        List<ComponenteCombate> seleccionados = new ArrayList<>();
+    public List<ComponenteCombate> seleccionarObjetivos(
+            MotorBatalla motor) {
+
+        List<ComponenteCombate> seleccionados =
+                new ArrayList<>();
 
         if (motor == null || !estaOperativa()) {
             return seleccionados;
         }
 
-        ComponenteCombate objetivo = motor.buscarObjetivoTerrestreAlcanzable(this);
+        ComponenteCombate objetivo =
+                motor.buscarObjetivoTerrestreAlcanzable(this);
 
         if (objetivo != null) {
             seleccionados.add(objetivo);
@@ -43,25 +73,46 @@ public class Demoledor extends Criatura {
 
     @Override
     public boolean mover(MotorBatalla motor) {
+
         if (motor == null || !estaOperativa()) {
             return false;
         }
 
-        ComponenteCombate objetivo = motor.buscarObjetivoTerrestreAlcanzable(this);
-        return objetivo != null && motor.moverHaciaObjetivoTerrestre(this, objetivo);
+        ComponenteCombate objetivo =
+                motor.buscarObjetivoTerrestreAlcanzable(this);
+
+        return objetivo != null
+                && motor.moverHaciaObjetivoTerrestre(
+                        this,
+                        objetivo
+                );
     }
 
     @Override
-    public void atacar(MotorBatalla motor, List<ComponenteCombate> objetivos) {
-        if (motor == null || !estaOperativa() || getPosicion() == null || !puedeEjecutarAtaque()) {
+    public void atacar(
+            MotorBatalla motor,
+            List<ComponenteCombate> objetivos) {
+
+        if (motor == null
+                || !estaOperativa()
+                || getPosicion() == null
+                || !puedeEjecutarAtaque()) {
             return;
         }
 
         boolean exploto = false;
 
-        for (ComponenteCombate candidato : motor.buscarObjetivos(this)) {
-            if (candidato != null && candidato.getPosicion() != null && getPosicion().distanciaA(candidato.getPosicion()) <= getRadioEfecto()) {
-                double danioEfectivo = motor.aplicarAtaque(this, candidato);
+        for (ComponenteCombate candidato
+                : motor.buscarObjetivos(this)) {
+
+            if (candidato != null
+                    && puedeAtacar(candidato)) {
+
+                double danioEfectivo =
+                        motor.aplicarAtaque(
+                                this,
+                                candidato
+                        );
 
                 if (danioEfectivo > 0) {
                     exploto = true;
@@ -76,23 +127,33 @@ public class Demoledor extends Criatura {
     }
 
     @Override
-    public void ejecutarCiclo(MotorBatalla motor, long dtMs) {
-        if (motor == null || !motor.estaEnEjecucion() || !estaOperativa()) {
+    public void ejecutarCiclo(
+            MotorBatalla motor,
+            long dtMs) {
+
+        if (motor == null
+                || !motor.estaEnEjecucion()
+                || !estaOperativa()) {
             return;
         }
 
-        List<ComponenteCombate> objetivos = seleccionarObjetivos(motor);
+        List<ComponenteCombate> objetivos =
+                seleccionarObjetivos(motor);
 
         if (objetivos.isEmpty()) {
             return;
         }
 
-        ComponenteCombate objetivo = objetivos.get(0);
+        ComponenteCombate objetivo =
+                objetivos.get(0);
 
-        if (getPosicion() != null && objetivo.getPosicion() != null && getPosicion().esAdyacente(objetivo.getPosicion())) {
+        if (puedeAtacar(objetivo)) {
             atacar(motor, objetivos);
         } else {
-            motor.moverHaciaObjetivoTerrestre(this, objetivo);
+            motor.moverHaciaObjetivoTerrestre(
+                    this,
+                    objetivo
+            );
         }
     }
 }

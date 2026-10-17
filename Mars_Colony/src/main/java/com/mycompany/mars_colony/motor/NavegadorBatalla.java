@@ -1,6 +1,7 @@
 package com.mycompany.mars_colony.motor;
 
 import com.mycompany.mars_colony.modelo.combate.ComponenteCombate;
+import com.mycompany.mars_colony.modelo.combate.criatura.Acechador;
 import com.mycompany.mars_colony.modelo.combate.criatura.Demoledor;
 import com.mycompany.mars_colony.modelo.mapa.Posicion;
 import com.mycompany.mars_colony.modelo.mapa.Tablero;
@@ -42,6 +43,7 @@ public final class NavegadorBatalla {
         double mejorDistanciaDirecta = Double.MAX_VALUE;
 
         for (ComponenteCombate candidato : candidatos) {
+
             if (candidato == null
                     || candidato.getPosicion() == null
                     || !candidato.estaOperativo()) {
@@ -65,8 +67,8 @@ public final class NavegadorBatalla {
                     .distanciaA(candidato.getPosicion());
 
             if (distanciaRuta < mejorDistanciaRuta
-                    || distanciaRuta == mejorDistanciaRuta
-                    && distanciaDirecta < mejorDistanciaDirecta) {
+                    || (distanciaRuta == mejorDistanciaRuta
+                    && distanciaDirecta < mejorDistanciaDirecta)) {
 
                 mejorObjetivo = candidato;
                 mejorDistanciaRuta = distanciaRuta;
@@ -108,6 +110,7 @@ public final class NavegadorBatalla {
         visitadas.add(inicio);
 
         while (!pendientes.isEmpty()) {
+
             Posicion actual = pendientes.remove();
 
             for (Posicion vecino : obtenerVecinos(
@@ -126,7 +129,6 @@ public final class NavegadorBatalla {
                         tablero,
                         actual,
                         vecino)) {
-
                     continue;
                 }
 
@@ -171,7 +173,6 @@ public final class NavegadorBatalla {
                 atacante,
                 inicio,
                 objetivo)) {
-
             return null;
         }
 
@@ -183,6 +184,7 @@ public final class NavegadorBatalla {
         visitadas.add(inicio);
 
         while (!pendientes.isEmpty()) {
+
             Posicion actual = pendientes.remove();
 
             for (Posicion vecino : obtenerVecinos(
@@ -205,6 +207,7 @@ public final class NavegadorBatalla {
                         );
 
                 if (puedeTerminarAqui) {
+
                     List<Posicion> ruta = reconstruirRuta(
                             anterior,
                             inicio,
@@ -235,6 +238,7 @@ public final class NavegadorBatalla {
         }
 
         for (int i = 1; i < ruta.size(); i++) {
+
             Posicion posicion = ruta.get(i);
 
             if (tablero.estaLibre(posicion)) {
@@ -258,12 +262,10 @@ public final class NavegadorBatalla {
         }
 
         int diferenciaFila =
-                destino.getFila()
-                - origen.getFila();
+                destino.getFila() - origen.getFila();
 
         int diferenciaColumna =
-                destino.getColumna()
-                - origen.getColumna();
+                destino.getColumna() - origen.getColumna();
 
         boolean diagonal =
                 Math.abs(diferenciaFila) == 1
@@ -301,20 +303,23 @@ public final class NavegadorBatalla {
             return false;
         }
 
-        if (atacante instanceof Demoledor) {
+        Posicion posicionObjetivo =
+                objetivo.getPosicion();
+
+        if (atacante instanceof Acechador) {
             return desde.esAdyacente(
-                    objetivo.getPosicion()
+                    posicionObjetivo
             );
         }
 
-        if (atacante.getAlcance() == 1) {
-            return desde.esAdyacente(
-                    objetivo.getPosicion()
-            );
+        if (atacante instanceof Demoledor) {
+            return desde.distanciaA(
+                    posicionObjetivo
+            ) <= atacante.getRadioEfecto();
         }
 
         return desde.distanciaA(
-                objetivo.getPosicion()
+                posicionObjetivo
         ) <= atacante.getAlcance();
     }
 
@@ -322,15 +327,13 @@ public final class NavegadorBatalla {
             Tablero tablero,
             Posicion posicion) {
 
-        List<Posicion> vecinos =
-                new ArrayList<>(8);
+        List<Posicion> vecinos = new ArrayList<>(8);
 
         for (int[] direccion : DIRECCIONES) {
+
             Posicion vecino = new Posicion(
-                    posicion.getFila()
-                    + direccion[0],
-                    posicion.getColumna()
-                    + direccion[1]
+                    posicion.getFila() + direccion[0],
+                    posicion.getColumna() + direccion[1]
             );
 
             if (tablero.estaDentro(vecino)) {
@@ -346,12 +349,11 @@ public final class NavegadorBatalla {
             Posicion inicio,
             Posicion destino) {
 
-        List<Posicion> ruta =
-                new ArrayList<>();
-
+        List<Posicion> ruta = new ArrayList<>();
         Posicion actual = destino;
 
         while (actual != null) {
+
             ruta.add(actual);
 
             if (actual.equals(inicio)) {
@@ -362,10 +364,8 @@ public final class NavegadorBatalla {
         }
 
         if (ruta.isEmpty()
-                || !ruta.get(
-                        ruta.size() - 1
-                ).equals(inicio)) {
-
+                || !ruta.get(ruta.size() - 1)
+                        .equals(inicio)) {
             return Collections.emptyList();
         }
 
